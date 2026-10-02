@@ -76,8 +76,8 @@ export default defineConfig({
    * 属 fail-fast，优于静默 undefined。
    *
    * 环境变量取值（见 app/.env）：
-   *   开发（SQLite）  ： DATABASE_URL="file:./dev.db"
-   *                     —— 相对 **schema.prisma 所在目录** 解析，即 app/prisma/dev.db
+   *   开发（SQLite）  ： DATABASE_URL="file:./prisma/dev.db"
+   *                     —— 相对 **prisma.config.ts 所在目录**（本项目为 app/）解析，即 app/prisma/dev.db
    *   生产（Postgres）： Supabase **直连**串（不走 pooler）
    *                     —— 因为 pooler 不支持迁移所需的会话级操作（见 docs/11 A31）
    */

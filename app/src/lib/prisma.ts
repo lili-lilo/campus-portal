@@ -17,10 +17,10 @@ import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const createPrismaClient = () => {
-  // 连接串从 .env 读取（DATABASE_URL="file:./dev.db"）。
-  // `file:` 相对路径由 Prisma 按 schema.prisma 所在目录解析 → app/prisma/dev.db
+  // 连接串从 .env 读取（DATABASE_URL="file:./prisma/dev.db"）。
+  // `file:` 相对路径由 Prisma 按 prisma.config.ts 所在目录（本项目为 app/）解析 → app/prisma/dev.db
   const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./dev.db",
+    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
   });
 
   return new PrismaClient({ adapter });
