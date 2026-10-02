@@ -22,6 +22,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:setup": "prisma migrate dev && prisma db seed",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:component": "vitest run --project component",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },

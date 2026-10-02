@@ -22,7 +22,8 @@
  *     upsert 键在 schema 里**没有唯一索引**（Prisma 的 upsert.where 只接受唯一过滤器），
  *     故这三个模型改用固定 id（`seed-media-1` / `seed-form-1` / `seed-attach-1`）。
  *  C. `Permission` 按 docs/14 §7 全量 **45** 条（14 menu + 28 action + 3 data）种，
- *     而非 docs/13 §6 的「约 20」；RolePermission 按 docs/14 §7 的四角色矩阵生成。
+ *     而非 docs/13 §6 的「约 20」；RolePermission 按 docs/14 §7 的四角色矩阵生成，
+ *     并按 docs/16 §2.3 收窄 site_admin（排除 `role.manage` / `user.manage`）→ 总数 105。
  *
  * ── 一处「约值」的实现口径（docs 只给约数，此处定死以便复现）─────────────────
  *   · 文章：主站 60 / cs 14 / ee 13 / ba 13；状态 published 80 / pending_first 6 /
@@ -37,6 +38,10 @@ import bcrypt from "bcryptjs";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+// T1.9：保留 slug 规则与 dateKey 的**唯一实现**已抽到 src/lib，seed 只做调用方。
+// 用**相对路径**导入（seed 由 tsx 运行，tsx 不读 tsconfig 的 paths 别名）。
+import { dateKeyOf } from "../src/lib/date";
+import { assertSlugAllowedForSeed } from "../src/lib/slug";
 
 // ---------------------------------------------------------------------------
 // 基础工具（全部确定性）
@@ -48,19 +53,6 @@ const BASE = new Date("2026-10-01T00:00:00Z");
 /** 基准 + 偏移（天/小时/分钟），负值表示更早 */
 function shift(days: number, hours = 0, minutes = 0): Date {
   return new Date(BASE.getTime() + (days * 24 * 60 + hours * 60 + minutes) * 60_000);
-}
-
-/**
- * dateKey 的**唯一实现**（docs/13 §5.3 / docs/10 §9）：
- * en-CA 在 Asia/Shanghai 时区下输出 YYYY-MM-DD。写入方与第 5 周的查询方必须共用本函数。
- */
-function dateKeyOf(utcDate: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(utcDate);
 }
 
 /** 确定性 32 位哈希（FNV-1a），替代 Math.random */
@@ -103,34 +95,8 @@ const prisma = new PrismaClient({ adapter });
 // 静态数据表
 // ---------------------------------------------------------------------------
 
-/**
- * 保留 slug（docs/15 §4.1 的 10 个黑名单）
- * SEED_ALLOWED_RESERVED = 其中 8 个：docs/15 §6 的静态路由就是按它们取数的（裁决 A）
- * search / sitemap 没有对应 Channel 语义 → 仍然禁止
- */
-const RESERVED_SLUGS = [
-  "news",
-  "notice",
-  "about",
-  "departments",
-  "faculty",
-  "admissions",
-  "research",
-  "disclosure",
-  "search",
-  "sitemap",
-] as const;
-
-const SEED_ALLOWED_RESERVED: readonly string[] = [
-  "news",
-  "notice",
-  "about",
-  "departments",
-  "faculty",
-  "admissions",
-  "research",
-  "disclosure",
-];
+// T1.9：保留 slug 的黑名单（10）与 seed 白名单（8）已抽到 `src/lib/slug.ts`（唯一实现），
+// 本文件不再内联，只调用 `assertSlugAllowedForSeed()`。
 
 /** 栏目定义：主站 8 顶级（about 另带 4 子栏目）+ 子站各 6 */
 type ChannelSeed = {
@@ -308,7 +274,11 @@ const ROLE_MATRIX: Record<
   },
   site_admin: {
     menus: MENU_PERMISSIONS.map((p) => p.code),
-    actions: ACTION_PERMISSIONS.map((p) => p.code),
+    // T1.9 收窄：docs/16 §2.3 规定 `role.manage` / `user.manage` **仅** `super_admin` 可用
+    // → site_admin 由 43 条（全 28 个 action）降为 41 条；RolePermission 总数 107 → 105。
+    actions: ACTION_PERMISSIONS.map((p) => p.code).filter(
+      (code) => code !== "role.manage" && code !== "user.manage",
+    ),
     data: ["data.site_scoped"],
   },
   editor: {
@@ -446,24 +416,13 @@ async function seedSites(): Promise<{ siteIds: IdMap; siteNames: IdMap }> {
 async function seedChannels(siteIds: IdMap): Promise<{ channelIds: IdMap; enabled: number }> {
   let enabled = 0;
 
-  /** 断言：白名单内的保留 slug 允许；其余保留 slug（search / sitemap）命中即抛错终止 */
-  function assertSlugAllowed(slug: string, siteSlug: string): void {
-    const hit = (RESERVED_SLUGS as readonly string[]).includes(slug);
-    if (hit && !SEED_ALLOWED_RESERVED.includes(slug)) {
-      throw new Error(
-        `[seed] 保留 slug 断言失败：site=${siteSlug} channel.slug="${slug}" 命中黑名单且不在白名单内。` +
-          ` 详见 docs/15 §4.1 与 T1.5 裁决（seed 仅允许 ${SEED_ALLOWED_RESERVED.join(" / ")}）。`,
-      );
-    }
-  }
-
   async function upsertChannel(
     siteSlug: string,
     def: ChannelSeed,
     sort: number,
     parentId?: string,
   ): Promise<void> {
-    assertSlugAllowed(def.slug, siteSlug);
+    assertSlugAllowedForSeed(def.slug, siteSlug);
     const siteId = siteIds.get(siteSlug);
     if (!siteId) throw new Error(`[seed] 站点不存在：${siteSlug}`);
 

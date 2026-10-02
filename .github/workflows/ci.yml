@@ -1,0 +1,92 @@
+# ============================================================================
+# CI（docs/16 §3）
+#
+# · 两个 job：
+#     verify —— install / typecheck / lint / test，**所有 push + PR 都跑**
+#     build  —— install / build，**仅 push 到 main 时跑**（裁决 ②）
+# · Node 24.x（与 package.json 的 engines 一致，满足 Prisma 7 的 >=24.0）
+# · 不跑 E2E（docs/16 §5：太慢，仅本地演示前跑）
+# · 项目在 app/ 子目录：**所有步骤的 working-directory 都是 app**，
+#   根目录只用于承载 git 钩子（husky），CI 不在根装依赖
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  verify:
+    name: verify（install / typecheck / lint / test）
+    runs-on: ubuntu-latest
+    env:
+      # 单测不启动服务、不连库；seed-idempotency 用临时 SQLite（docs/16 §3.2/§3.3）
+      DATABASE_URL: "file:./test.db"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test（Vitest：unit + component）
+        run: pnpm test
+
+  build:
+    name: build（仅 main push）
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./prisma/dev.db"
+      # 构建期不启动服务；给一个 CI 专用占位值（生产密钥由部署平台注入）
+      AUTH_SECRET: "ci-build-only-not-a-secret"
+      NEXT_PUBLIC_SITE_URL: "https://example.invalid"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
