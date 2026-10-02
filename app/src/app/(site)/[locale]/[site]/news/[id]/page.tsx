@@ -1,29 +1,77 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export const metadata: Metadata = { title: "新闻详情" };
+import { ArticleDetail, fetchArticleDetail } from "@/components/article-detail";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { RelatedArticles } from "@/components/related-articles";
+import { getSiteContext } from "@/lib/site-context";
 
 // ISR：docs/15 §6 规定详情页 revalidate = 300
 export const revalidate = 300;
 
+type DetailParams = { locale: string; site: string; id: string };
+
 /**
  * 新闻详情（docs/15 §1 `news/[id]`；U2 裁决：本静态段优先于 `[channel]/[id]`）
- * T1.6 骨架。TODO(T1.10)：GET /api/articles/[idOrSlug]（未发布返回 NOT_FOUND，不泄露草稿存在性）
+ * ============================================================================
+ * · `id` 可能是 **slug 或 id**（docs/14 §5.1 的 `[idOrSlug]`）→ 由 `fetchArticleDetail` 同时匹配
+ * · 未找到 / 未发布 / 已删除 / 未到发布时间 → `notFound()`（不泄露草稿存在性）
+ * · 区块顺序：面包屑 → 正文详情（标题/元信息/封面/正文/附件）→ 相关阅读
+ * · `generateMetadata` 与页面**共用** `fetchArticleDetail`（React `cache()` → 同请求只查一次库）
  */
-export default async function NewsDetailPage({
+export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string; site: string; id: string }>;
-}) {
-  const { site, id } = await params;
+  params: Promise<DetailParams>;
+}): Promise<Metadata> {
+  const { site: siteSlug, id } = await params;
+  const context = await getSiteContext(siteSlug);
+
+  if (!context) {
+    return { title: "新闻详情" };
+  }
+
+  const article = await fetchArticleDetail({ siteId: context.site.id, idOrSlug: id });
+  return { title: article?.title ?? "新闻详情" };
+}
+
+export default async function NewsDetailPage({ params }: { params: Promise<DetailParams> }) {
+  const { site: siteSlug, id } = await params;
+
+  const context = await getSiteContext(siteSlug);
+  if (!context) {
+    notFound();
+  }
+
+  const article = await fetchArticleDetail({ siteId: context.site.id, idOrSlug: id });
+  if (!article) {
+    notFound();
+  }
+
+  const channelSlug = article.channel?.slug ?? "news";
 
   return (
-    <article className="mx-auto w-full max-w-3xl space-y-4 px-4 py-10">
-      <p className="text-sm text-muted-foreground">新闻详情 · 静态段 news/[id]</p>
-      <h1 className="text-2xl font-semibold tracking-tight">文章标题占位</h1>
-      <p className="text-sm text-muted-foreground">
-        T1.6 路由骨架占位页（/{site}/news/{id}）。正文、附件、评论见 T1.10。
-      </p>
-      {/* TODO(T1.10)：文章不存在时调用 notFound()，由站点级/栏目级 not-found 渲染 */}
-    </article>
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-gutter py-section-sm">
+      {/* ① 面包屑：首页 / 栏目 / 标题 */}
+      <Breadcrumbs
+        items={[
+          { label: "首页", href: `/${siteSlug}` },
+          { label: article.channel?.name ?? "新闻中心", href: `/${siteSlug}/${channelSlug}` },
+          { label: article.title },
+        ]}
+      />
+
+      {/* ②~⑤ 标题 / 元信息 / 封面 / 正文 / 附件 */}
+      <ArticleDetail article={article} siteSlug={siteSlug} />
+
+      {/* ⑥ 相关阅读（同栏目 exclude 自身，最多 5 条） */}
+      <RelatedArticles
+        siteId={article.siteId}
+        channelId={article.channelId}
+        currentId={article.id}
+        siteSlug={siteSlug}
+        className="border-t border-border pt-8"
+      />
+    </div>
   );
 }

@@ -1,29 +1,94 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export const metadata: Metadata = { title: "文章详情" };
+import { ArticleDetail, fetchArticleDetail } from "@/components/article-detail";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { RelatedArticles } from "@/components/related-articles";
+import { prisma } from "@/lib/prisma";
+import { getSiteContext } from "@/lib/site-context";
 
-// ISR：docs/15 §6 规定 revalidate = 300
+// ISR：docs/15 §6 规定详情页 revalidate = 300
 export const revalidate = 300;
 
+type DetailParams = { locale: string; site: string; channel: string; id: string };
+
 /**
- * 非保留 slug 栏目下的文章详情（docs/15 §4.4 `/[site]/[channel]/[id]`，仅 list 型栏目）
- * 与 `news/[id]` 读同一份 Article、渲染同一形态（docs/15 §4.4 的说明）。
- * T1.6 骨架。TODO(T1.10)：GET /api/articles/[idOrSlug]，并断言所在栏目为 list 型。
+ * 非保留 slug 栏目下的文章详情（docs/15 §4.4 / `[channel]/[id]`）
+ * ============================================================================
+ * 与 `news/[id]` 读**同一份 `Article`、渲染同一套组件**（docs/15 §4.4），差异只有两点：
+ *   1. 先按路径里的 `[channel]` 查栏目，并**要求 `type='list'`** ——
+ *      `page` / `link` / `form` 型栏目不提供文章详情（404）；
+ *   2. 详情查询带上 `channelId`，保证"路径栏目 = 文章所属栏目"（避免跨栏目串链）
+ *
+ * 例（seed 实测）：`/cs/programs/<slug>`、`/main/notice/<slug>`（notice 是 list 型，走本页）。
+ * ⚠ 主站 8 个顶级栏目的 slug 都是保留 slug，由静态路由接管（A19 修订），
+ *   故 `/main/news/<id>` 永远走 `news/[id]`（U2 已由 `tests/unit/route-matching.test.ts` 钉住）。
  */
-export default async function ChannelArticlePage({
+export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ locale: string; site: string; channel: string; id: string }>;
-}) {
-  const { site, channel, id } = await params;
+  params: Promise<DetailParams>;
+}): Promise<Metadata> {
+  const { site: siteSlug, id } = await params;
+  const context = await getSiteContext(siteSlug);
+
+  if (!context) {
+    return { title: "文章详情" };
+  }
+
+  const article = await fetchArticleDetail({ siteId: context.site.id, idOrSlug: id });
+  return { title: article?.title ?? "文章详情" };
+}
+
+export default async function ChannelArticlePage({ params }: { params: Promise<DetailParams> }) {
+  const { site: siteSlug, channel: channelSlug, id } = await params;
+
+  const context = await getSiteContext(siteSlug);
+  if (!context) {
+    notFound();
+  }
+
+  const channel = await prisma.channel.findFirst({
+    where: { siteId: context.site.id, slug: channelSlug, status: true },
+    select: { id: true, name: true, type: true },
+  });
+
+  // 栏目不存在 / 已停用 / **非 list 型**（page、link、form 都没有文章详情）→ 404
+  if (!channel || channel.type !== "list") {
+    notFound();
+  }
+
+  const article = await fetchArticleDetail({
+    siteId: context.site.id,
+    idOrSlug: id,
+    channelId: channel.id,
+  });
+  if (!article) {
+    notFound();
+  }
 
   return (
-    <article className="mx-auto w-full max-w-3xl space-y-4 px-4 py-10">
-      <p className="text-sm text-muted-foreground">文章详情 · 动态段 [channel]/[id]</p>
-      <h1 className="text-2xl font-semibold tracking-tight">文章标题占位</h1>
-      <p className="text-sm text-muted-foreground">
-        T1.6 路由骨架占位页（/{site}/{channel}/{id}）。
-      </p>
-    </article>
+    <div className="mx-auto w-full max-w-3xl space-y-8 px-gutter py-section-sm">
+      {/* ① 面包屑：首页 / 栏目 / 标题 */}
+      <Breadcrumbs
+        items={[
+          { label: "首页", href: `/${siteSlug}` },
+          { label: channel.name, href: `/${siteSlug}/${channelSlug}` },
+          { label: article.title },
+        ]}
+      />
+
+      {/* ②~⑤ 标题 / 元信息 / 封面 / 正文 / 附件 */}
+      <ArticleDetail article={article} siteSlug={siteSlug} />
+
+      {/* ⑥ 相关阅读 */}
+      <RelatedArticles
+        siteId={article.siteId}
+        channelId={article.channelId}
+        currentId={article.id}
+        siteSlug={siteSlug}
+        className="border-t border-border pt-8"
+      />
+    </div>
   );
 }
