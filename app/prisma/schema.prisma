@@ -1,46 +1,518 @@
 // ============================================================================
-// R1 冒烟用最小 schema —— **不是最终 schema**
+// 高校官网站群系统 —— 数据模型 v2
+// 文档：docs/13-数据模型-v2.md
 //
-// 目的：验证 Next 16 + Prisma 7 + Auth.js v5 三者能否共存（docs/12 §5 R1）。
-// 最终 schema（24 个 model）见 docs/13-数据模型-v2.md §2，由 **T1.4** 落盘。
-//
-// 为什么包含 4 个 model：
-//   @auth/prisma-adapter 在运行时会访问 user / account / session / verificationToken
-//   四张表（实测其 index.js 的 Prisma 调用）。只建 User 表会在登录时报错。
-//   与 docs/13 的缺口 5 / A10 一致（Auth.js 标准表）。
+// 约定：
+//   1. 所有 DateTime 一律按 UTC 存储；展示层统一转 Asia/Shanghai（见文档第 5 节）
+//   2. 枚举值以 String + 注释表达（SQLite 无原生 enum）
+//   3. 软删除统一用 deletedAt；前台查询默认 deletedAt: null
+//   4. 连接串不在本文件（Prisma 7 迁至 prisma.config.ts）
 // ============================================================================
 
 generator client {
+  // 注意：Prisma 7 用 prisma-client，不是 prisma-client-js
   provider = "prisma-client"
+  // Prisma 7 起 output 为必填；客户端从该路径导入，不再从 node_modules/@prisma/client 导入
   output   = "../src/generated/prisma"
 }
 
 datasource db {
+  // 开发 sqlite / 生产 postgresql。切换 provider 需改这一行并重跑 migrate。
   provider = "sqlite"
-  // url 由 prisma.config.ts 提供（Prisma 7）
+  // url / directUrl / shadowDatabaseUrl 已迁至 prisma.config.ts（Prisma 7）
 }
 
-/// 最小 User：只保留 R1 需要的字段
-model User {
-  id       String  @id @default(cuid())
-  username String  @unique
-  password String
-  role     String  @default("editor")
+// ---------------------------------------------------------------------------
+// 站群
+// ---------------------------------------------------------------------------
 
-  // Auth.js 必需字段
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-
+model Site {
+  id        String   @id @default(cuid())
+  /// 站点标识，用于 URL 路径段：main / cs / ee / ba（见 A21 路径方案 /[site]/...）
+  slug      String   @unique
+  name      String
+  /// 主站可留空；子站用于展示与未来子域名扩展
+  domain    String?  @unique
+  template  String   @default("default")
+  logo      String?
+  /// 站点简介，用于子站首页与 SEO description 兜底
+  description String?
+  status    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  channels     Channel[]
+  articles     Article[]
+  pages        Page[]
+  navigations  Navigation[]
+  users        User[]
+  media        Media[]
+  comments     Comment[]
+  forms        Form[]
+  statistics   Statistic[]
+  roles        Role[]
+
+  @@index([status])
 }
 
-/// Auth.js 标准表（字段名由适配器约定，不可改）
+model Channel {
+  id        String   @id @default(cuid())
+  siteId    String
+  parentId  String?
+  name      String
+  /// 栏目路径段，站点内唯一；禁止使用保留字（A19 黑名单）
+  slug      String
+  /// list（列表）/ page（单页）/ link（外链）/ form（表单）
+  type      String   @default("list")
+  /// type = link 时的跳转目标（外链或自定义路径）
+  url       String?
+  /// 模板名，空则用站点 template
+  template  String?
+  sort      Int      @default(0)
+  status    Boolean  @default(true)
+  /// type = form 时指向具体表单
+  formId    String?
+  /// 栏目说明，用于 SEO 与列表页副标题
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site      Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  parent    Channel?   @relation("ChannelTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Channel[]  @relation("ChannelTree")
+  form      Form?      @relation(fields: [formId], references: [id], onDelete: SetNull)
+  articles  Article[]
+  pages     Page[]
+  navigations Navigation[]
+
+  @@unique([siteId, slug])
+  @@index([siteId, parentId, sort])
+  @@index([siteId, status])
+}
+
+model Navigation {
+  id        String   @id @default(cuid())
+  siteId    String
+  parentId  String?
+  name      String
+  /// 指向站内栏目；与 url 至少一个非空（应用层校验）
+  channelId String?
+  /// 外部链接或自定义路径；channelId 为空时使用
+  url       String?
+  /// _self / _blank
+  target    String   @default("_self")
+  /// lucide-react 图标名，如 "School"
+  icon      String?
+  sort      Int      @default(0)
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site    Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  channel Channel?    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parent  Navigation? @relation("NavigationTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Navigation[] @relation("NavigationTree")
+
+  @@index([siteId, parentId, sort])
+  @@index([siteId, status])
+}
+
+// ---------------------------------------------------------------------------
+// 内容：文章 / 单页 / 版本 / 审核
+// ---------------------------------------------------------------------------
+
+model Article {
+  id          String    @id @default(cuid())
+  siteId      String
+  channelId   String
+  title       String
+  /// 站点内唯一，用于 SEO 静态化 URL
+  slug        String
+  summary     String?
+  /// 富文本 HTML，写入前经 sanitize-html 清洗（A30）
+  content     String
+  cover       String?
+  /// 展示用作者名（自由文本，如"党委宣传部"）
+  author      String?
+  /// 稿件归属人，用于 editor 的"只能操作本人稿件"判断（状态机约束 C4）
+  createdById String?
+  source      String?
+  /// JSON 字符串数组，如 ["招生","本科"]
+  tags        String?
+  /// draft / pending_first / pending_final / published / rejected / withdrawn（本次指令）
+  status      String    @default("draft")
+  top         Boolean   @default(false)
+  recommend   Boolean   @default(false)
+  /// 种子数据的浏览量；不做实时埋点采集（A26）
+  viewCount   Int       @default(0)
+  /// 计划发布时间，用于"定时发布"展示
+  publishTime DateTime?
+  /// UTC
+  createdAt   DateTime  @default(now())
+  /// UTC
+  updatedAt   DateTime  @updatedAt
+  /// UTC；非空表示在回收站中（A13）
+  deletedAt   DateTime?
+
+  site      Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  channel   Channel          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation("ArticleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  versions  ArticleVersion[]
+  audits    AuditRecord[]
+  comments  Comment[]
+  attachments Attachment[]
+  /// 多对多：一张图可被多篇文章引用（隐式中间表）
+  media     Media[]
+
+  @@unique([siteId, slug])
+  @@index([siteId, status, publishTime])
+  @@index([siteId, channelId, status])
+  @@index([createdById, status])
+  @@index([channelId, status])
+  @@index([status])
+  @@index([publishTime])
+  @@index([deletedAt])
+  @@index([siteId, top, recommend])
+}
+
+model Page {
+  id             String    @id @default(cuid())
+  siteId         String
+  channelId      String
+  title          String
+  slug           String
+  /// 富文本 HTML，写入前清洗
+  content        String
+  cover          String?
+  /// SEO 三要素，空则回退 Site/Channel 配置
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String?
+  /// draft / published（单页不走审核流）
+  status         String    @default("draft")
+  sort           Int       @default(0)
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  channel      Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+
+  /// 站点内唯一
+  @@unique([siteId, slug])
+  @@unique([siteId, channelId])
+  @@index([siteId, status])
+  @@index([deletedAt])
+}
+
+model ArticleVersion {
+  id        String   @id @default(cuid())
+  articleId String
+  /// 从 1 递增，同文章内唯一
+  version   Int
+  title     String
+  content   String
+  /// 展示用用户名（冗余）
+  editor    String
+  /// 真外键，便于"我改过的版本"过滤
+  userId    String?
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([articleId, version])
+  @@index([articleId, createdAt])
+}
+
+model AuditRecord {
+  id           String   @id @default(cuid())
+  articleId    String
+  /// submit / review / approve / reject / publish / withdraw
+  step         String
+  /// 流转前状态（见 Article.status 取值）
+  fromStatus   String?
+  /// 流转后状态
+  toStatus     String?
+  /// 展示用用户名（冗余，用户删除后仍可读）
+  operatorName String
+  /// 真外键，用于"我的待办 / 我的操作"过滤
+  userId       String?
+  /// 执行时所用角色，审计必需
+  role         String
+  comment      String?
+  createdAt    DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId, createdAt])
+  @@index([userId, createdAt])
+  @@index([toStatus])
+}
+
+// ---------------------------------------------------------------------------
+// 素材：媒体库 / 附件
+// ---------------------------------------------------------------------------
+
+model Media {
+  id         String    @id @default(cuid())
+  /// 空 = 全站共享
+  siteId     String?
+  /// image / video / file
+  type       String
+  name       String
+  path       String
+  /// 字节数
+  size       Int
+  mimeType   String?
+  width      Int?
+  height     Int?
+  /// news / carousel / dept / leader / other
+  folder     String?
+  /// 相册名，与 folder 正交（folder 是用途，album 是内容分组）
+  album      String?
+  /// 展示用上传者名（冗余）
+  uploader   String
+  /// 真外键
+  uploaderId String?
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
+  site         Site?        @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  uploaderUser User?        @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  attachments  Attachment[]
+  articles     Article[]
+
+  @@index([siteId, folder])
+  @@index([siteId, album])
+  @@index([type])
+  @@index([deletedAt])
+}
+
+model Attachment {
+  id            String   @id @default(cuid())
+  /// 宿主之一：新闻附件
+  articleId     String?
+  /// 宿主之一：单页附件
+  pageId        String?
+  /// 可空：附件可能是文档，不在媒体库（图片/视频）范畴
+  mediaId       String?
+  fileName      String
+  filePath      String
+  size          Int
+  mimeType      String?
+  downloadCount Int      @default(0)
+  sort          Int      @default(0)
+  createdAt     DateTime @default(now())
+  deletedAt     DateTime?
+
+  article Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  page    Page?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  media   Media?   @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  @@index([articleId, sort])
+  @@index([pageId, sort])
+  @@index([mediaId])
+  @@index([deletedAt])
+}
+
+// ---------------------------------------------------------------------------
+// 互动：评论 / 留言 / 表单
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id        String    @id @default(cuid())
+  siteId    String
+  articleId String
+  /// 顶级评论为空；回复挂顶级评论（两级，应用层校验）
+  parentId  String?
+  name      String
+  email     String?
+  content   String
+  /// pending / approved / rejected
+  status    String    @default("pending")
+  /// 冗余 IP，用于后台展示与将来反垃圾
+  ip        String?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  site    Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  article Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentTree", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentTree")
+
+  @@index([siteId, status, createdAt])
+  @@index([articleId, status])
+  @@index([parentId])
+  @@index([deletedAt])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  /// leader / suggestion / complaint
+  type      String
+  name      String
+  contact   String?
+  content   String
+  /// pending / processing / replied
+  status    String   @default("pending")
+  reply     String?
+  repliedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+model Form {
+  id        String   @id @default(cuid())
+  /// 空 = 全站通用
+  siteId    String?
+  name      String
+  /// JSON：字段定义数组
+  fields    String
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site     Site?      @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  data     FormData[]
+  channels Channel[]
+
+  @@index([siteId, status])
+}
+
+model FormData {
+  id        String   @id @default(cuid())
+  formId    String
+  /// JSON：提交内容
+  data      String
+  /// new / read / archived
+  status    String   @default("new")
+  /// 提交者 IP，用于后台展示
+  ip        String?
+  createdAt DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, status, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// 用户 / 认证 / 权限
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  /// 登录名，Credentials Provider 用
+  username      String    @unique
+  /// bcryptjs 哈希（rounds = 10，见 A29）
+  password      String
+  name          String
+  email         String?   @unique
+  /// Auth.js 标准字段；Credentials 流程不使用，保留以兼容 Adapter
+  emailVerified DateTime?
+  /// Auth.js 标准字段（头像）
+  image         String?
+  avatar        String?
+  /// 主角色快速判断：super_admin / site_admin / editor / auditor
+  /// 与 Role.code 取值一致；细粒度权限走 UserRole → RolePermission
+  role          String    @default("editor")
+  /// 数据范围所属站点；super_admin 为 null
+  siteId        String?
+  status        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  site          Site?            @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  accounts      Account[]
+  sessions      Session[]
+  userRoles     UserRole[]
+  versions      ArticleVersion[]
+  audits        AuditRecord[]
+  media         Media[]
+  articles      Article[]        @relation("ArticleCreator")
+
+  @@index([siteId, role])
+  @@index([status])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String
+  /// 与 User.role 取值一致：super_admin / site_admin / editor / auditor
+  code        String   @unique
+  /// null = 全局角色（super_admin）
+  siteId      String?
+  /// 数据范围：global / site / channel
+  scope       String   @default("site")
+  /// 内置角色，后台不可删除
+  isSystem    Boolean  @default(false)
+  description String?
+  sort        Int      @default(0)
+  status      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  site        Site?            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@index([siteId, status])
+  @@index([scope])
+}
+
+model Permission {
+  id    String @id @default(cuid())
+  name  String
+  /// 如 article.create / article.audit / menu.articles
+  code  String @unique
+  /// menu / action / data
+  type  String
+  /// 后台权限勾选界面的分组名
+  group String @default("general")
+  sort  Int    @default(0)
+
+  roles RolePermission[]
+
+  @@index([type, group, sort])
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  /// 该用户在该站点拥有该角色；super_admin 为 null
+  siteId    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@index([siteId])
+}
+
+// --- Auth.js v5 标准表（Adapter 要求）---------------------------------------
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -58,6 +530,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -65,8 +538,9 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -75,4 +549,57 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// 运维：统计 / 日志 / 配置
+// ---------------------------------------------------------------------------
+
+model Statistic {
+  id      String @id @default(cuid())
+  /// Asia/Shanghai 的日期，格式 YYYY-MM-DD；所有按日聚合只读此字段（A32）
+  dateKey String
+  /// 站点 id，真外键；不做"全站汇总"行，汇总由查询对 4 个站点求和（见文档 Q6 方案 A）
+  siteId  String
+  /// UTC 零点，仅作展示与排序，不用于聚合
+  date    DateTime
+  pv      Int    @default(0)
+  uv      Int    @default(0)
+  ip      Int    @default(0)
+  /// search / direct / external（搜索引擎 / 直接访问 / 外部链接）
+  source  String?
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([dateKey, siteId])
+  @@index([dateKey])
+  @@index([siteId, dateKey])
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  /// login / operation / audit / error
+  type      String
+  userId    String?
+  /// 展示用用户名（冗余）
+  username  String?
+  ip        String?
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model Config {
+  id    String @id @default(cuid())
+  /// 全局唯一，如 seo.home.title
+  key   String @unique
+  value String
+  /// seo / security / watermark / sensitive_words / site / general
+  group String @default("general")
+
+  @@index([group])
 }
