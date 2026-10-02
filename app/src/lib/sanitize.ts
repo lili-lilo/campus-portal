@@ -62,6 +62,17 @@ const OPTIONS: sanitizeHtmlLib.IOptions = {
   allowProtocolRelative: false,
   // 不在白名单的标签：丢弃标签本身（`script`/`style` 的内容也一并丢弃）
   disallowedTagsMode: "discard",
+  // 加固（T2.7）：`target="_blank"` 且未显式给 rel 时，自动补 `noopener noreferrer`
+  // （不覆盖已有的 rel —— 调用方显式声明时以调用方为准）
+  transformTags: {
+    a: (tagName, attribs) => ({
+      tagName: "a",
+      attribs: {
+        ...attribs,
+        ...(attribs.target === "_blank" && !attribs.rel ? { rel: "noopener noreferrer" } : {}),
+      },
+    }),
+  },
 };
 
 /** 清洗富文本 HTML（白名单之外一律剥离） */
