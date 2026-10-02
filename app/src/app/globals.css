@@ -4,75 +4,194 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================================
+ * 设计 token（T1.3）
+ * ----------------------------------------------------------------------------
+ * 数值来源：docs/08-设计规范/08-设计规范.txt 末尾
+ *           《T1.3 设计 token 补充规格（权威 · 2026-10-02）》
+ *
+ * 三条落盘约定（勿破坏）：
+ *   ① 具体值只写在 :root（以及两个 data-a11y-* 覆盖块）；下面的 @theme inline
+ *      只做「:root 变量 → Tailwind 键」的映射，不出现任何硬编码值。
+ *   ② :root 变量名与 @theme 键名必须不同 —— 同名会变成自引用。旧文件的
+ *      `--font-sans: var(--font-sans)` 正是这个 bug（layout.tsx 注入的
+ *      --font-geist-sans 从未被用上，font-sans / font-heading 一直失效），本步已修。
+ *   ③ src/components/ui/ 下的 28 个 shadcn 组件一律不改，本文件是唯一改动点。
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * 1. @theme inline —— 只映射，不定义值
+ * ------------------------------------------------------------------------- */
 @theme inline {
+  /* 语义色（shadcn 既有键，值改由 :root 提供） */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* 侧边栏：shadcn 侧边栏组件专用键，本项目侧边栏自研（用 --admin-*）。
+     按 08 补充规格 S1 的「禁止覆盖」清单，此处只映射、不改值。 */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* T1.3 新增语义色 */
+  --color-surface: var(--surface);
+  --color-gold: var(--gold);
+  --color-gold-text: var(--gold-text);
+  --color-admin-sidebar: var(--admin-sidebar);
+  --color-admin-surface: var(--admin-surface);
+
+  /* 字体：修掉自引用。
+     --font-geist-sans / --font-geist-mono 由 layout.tsx 的 next/font 注入 <html>。
+     字族顺序：拉丁 → macOS 中文 → Windows 中文 → Linux 中文 → 系统回落。 */
+  --font-sans:
+    var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif,
+    system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  /* 等宽栈：与 --font-sans 同理，带 CJK 回落（T1.3 裁决补） */
+  --font-mono:
+    var(--font-geist-mono), "SF Mono", "Menlo", "Consolas", "Liberation Mono", "Courier New",
+    "PingFang SC", "Microsoft YaHei", ui-monospace, monospace;
+
+  /* 行高（docs/08 唯一行高数值：正文 1.75） */
+  --leading-body: var(--lh-body);
+
+  /* 圆角：显式值，替换原 calc(var(--radius) * k) 链。
+     实测 button / input / textarea / select 用 rounded-lg → 8px；
+     card / dialog / alert-dialog 用 rounded-xl → 12px。 */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-control);
+  --radius-xl: var(--r-card);
+  --radius-2xl: var(--r-2xl);
+  --radius-3xl: var(--r-3xl);
+  --radius-4xl: var(--r-4xl);
+  --radius-btn: var(--r-control);
+  --radius-field: var(--r-control);
+  --radius-card: var(--r-card);
+  --radius-image: var(--r-image);
+
+  /* 阴影三档 */
+  --shadow-card: var(--elev-card);
+  --shadow-hover: var(--elev-hover);
+  --shadow-modal: var(--elev-modal);
+
+  /* 间距与容器 */
+  --spacing-gutter: var(--sp-gutter);
+  --spacing-gutter-sm: var(--sp-gutter-sm);
+  --spacing-section: var(--sp-section);
+  --spacing-section-sm: var(--sp-section-sm);
+  --spacing-card: var(--sp-card);
+  --container-page: var(--w-page);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+/* 断点不能用 @theme inline 映射 var()：媒体查询中 var() 无效，会导致所有
+   sm:/md:/lg: 变体静默失效。故用非 inline @theme + rem 字面量。
+   数值与 docs/08 一致（也等于 Tailwind v4 默认值，显式声明以求自文档化）。 */
+@theme {
+  --breakpoint-sm: 40rem; /* 640px */
+  --breakpoint-md: 48rem; /* 768px */
+  --breakpoint-lg: 64rem; /* 1024px */
+  --breakpoint-xl: 80rem; /* 1280px */
+  --breakpoint-2xl: 96rem; /* 1536px */
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. :root —— 唯一的值来源（常规态 = 高对比度关闭态 = SSR 默认）
+ *    `:root` 与 `html[data-a11y-contrast="off"]` 共用同一份声明，避免两处漂移；
+ *    两者同时覆盖，即满足「SSR 默认 fallback」要求（16 第 95 行断言 data-a11y-*）。
+ * ------------------------------------------------------------------------- */
+:root,
+html[data-a11y-contrast="off"] {
+  /* --- 色板（docs/08 §主色调；括号内为对白对比度，见 08 补充规格 S1） --- */
+  --background: #ffffff;
+  --foreground: #1f2937; /* 14.68:1 */
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #1a4f8b; /* 8.28:1 */
+  --primary-foreground: #ffffff;
+  --secondary: #f5f7fa;
+  --secondary-foreground: #1f2937;
+  --muted: #f5f7fa;
+  --muted-foreground: #6b7280; /* 4.83:1；压 --surface 时恰好 4.50:1，勿再叠加透明度 */
+  --accent: #f5f7fa;
+  --accent-foreground: #1f2937;
+  --border: #e5e7eb; /* 1.24:1，装饰性边框 */
+  --input: #e5e7eb;
+  --surface: #f5f7fa;
+
+  /* 金色：--gold 仅作点缀（对白 2.25:1，禁止作文本/图标）；
+     需要金色文字时用 --gold-text（4.90:1）。 */
+  --gold: #c9a961;
+  --gold-text: #8a6d1f;
+
+  /* 后台（自研侧边栏用，不占用 shadcn 的 --sidebar*） */
+  --admin-sidebar: #1f2937;
+  --admin-surface: #f9fafb;
+
+  /* --- 间距（docs/08：1280 / 左右 24（移动 16） / 区块 80（移动 48） / 卡片 24） --- */
+  --w-page: 1280px; /* 容器最大宽：px 锚定，不随字号缩放 → 防 200% 时横向溢出 */
+  --sp-gutter: 24px;
+  --sp-gutter-sm: 16px;
+  --sp-section: 80px;
+  --sp-section-sm: 48px;
+  --sp-card: 24px;
+
+  /* --- 圆角（docs/08：按钮 8 / 卡片 12 / 输入框 8 / 图片 8） --- */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-control: 8px; /* 按钮 / 输入框 / 文本域 / 下拉 */
+  --r-card: 12px; /* 卡片 / 弹窗 */
+  --r-image: 8px;
+  --r-2xl: 16px;
+  --r-3xl: 24px;
+  --r-4xl: 32px; /* badge 用 rounded-4xl */
+  /* sonner.tsx 内部直接读 var(--radius)（组件不改），给卡片值 */
+  --radius: 12px;
+
+  /* --- 阴影三档（docs/08） --- */
+  --elev-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --elev-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --elev-modal: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+  /* --- 行高（docs/08：正文 line-height 1.75） --- */
+  --lh-body: 1.75;
+
+  /* --- 以下三项按 08 补充规格 S1「禁止覆盖」保持 shadcn 原值 ---
+     它们是既有语义，不是本项目色板：改成品牌色会波及已装的 28 个组件。 */
+  --destructive: oklch(0.577 0.245 27.325); /* 错误态红系 */
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -81,6 +200,149 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. 高对比度主题（属性名权威：docs/16 第 95 行 `data-a11y-contrast`）
+ *    目标：文字一律 ≥ 7:1（超过 08 的 4.5:1 下限），去掉浅灰底，边框转黑。
+ *    开关 UI 属第 5 周（A36）；第 1 周只落变量。
+ *
+ *    逐项覆盖清单（08 补充规格 S4）：
+ *      文字    → --foreground / --muted-foreground（+ 各处 *-foreground）
+ *      边框    → --border / --input
+ *      背景    → --background / --card / --popover / --surface / --muted /
+ *                --accent / --secondary
+ *      金色文字 → --gold / --gold-text
+ *      圆角    → 08 未规定随高对比度变化，此处显式声明为「不变」，避免误读为遗漏
+ *      字号    → 不属本块（见下方第 4 节 data-a11y-font）
+ * ------------------------------------------------------------------------- */
+html[data-a11y-contrast="on"] {
+  /* 文字 */
+  --foreground: #000000; /* 21:1 */
+  --muted-foreground: #1f2937; /* 14.68:1 */
+  --card-foreground: #000000;
+  --popover-foreground: #000000;
+  --secondary-foreground: #000000;
+  --accent-foreground: #000000;
+
+  /* 背景（取消浅灰） */
+  --background: #ffffff;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --surface: #ffffff;
+  --muted: #ffffff;
+  --accent: #ffffff;
+  --secondary: #ffffff;
+
+  /* 主色加深，保留品牌识别 */
+  --primary: #0b3a6b; /* 11.46:1 */
+  --primary-foreground: #ffffff;
+
+  /* 边框（21:1，键为 WCAG 非文字对比度） */
+  --border: #000000;
+  --input: #000000;
+
+  /* 金色：改用可作文本的金 */
+  --gold: #8a6d1f;
+  --gold-text: #8a6d1f; /* 4.90:1 */
+
+  /* 后台 */
+  --admin-sidebar: #000000;
+  --admin-surface: #ffffff;
+
+  /* 圆角：显式声明不变（见本块头部清单） */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-control: 8px;
+  --r-card: 12px;
+  --r-image: 8px;
+  --r-2xl: 16px;
+  --r-3xl: 24px;
+  --r-4xl: 32px;
+  --radius: 12px;
+
+  /* 焦点环：/50 合成后对白 3.95:1（08 补充规格 S3） */
+  --ring: #000000;
+
+  /* S4 要求高对比度下加深；这是主题机制内的重声明，不是覆盖 shadcn 默认语义
+     （约束 #10 指的是默认值）。
+     T1.3 已裁决取值 #991b1b：作文字压白底、白字压其上均为 8.31:1 ✓
+     （默认 #E7000B 为 4.77:1，满足 S4 数值行的 4.5:1，但达不到 S4 抬头
+      "所有文字 ≥7:1"的原则）。 */
+  --destructive: #991b1b;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. 字号缩放（属性名权威：docs/16 第 95 行 `data-a11y-font`）
+ *    5 档：100 / 125 / 150 / 175 / 200（08 补充规格 S5）。
+ *    覆盖清单：字号 → --font-scale；圆角不参与（px 锚定，不随字号缩放，
+ *    已在第 2 节与第 3 节声明）；文字/边框/背景/金色文字不参与（见第 3 节）。
+ * ------------------------------------------------------------------------- */
+:root,
+html[data-a11y-font="100"] {
+  --font-scale: 1; /* SSR 默认 = data-a11y-font="100" */
+}
+
+html[data-a11y-font="125"] {
+  --font-scale: 1.25;
+}
+
+html[data-a11y-font="150"] {
+  --font-scale: 1.5;
+}
+
+html[data-a11y-font="175"] {
+  --font-scale: 1.75;
+}
+
+html[data-a11y-font="200"] {
+  --font-scale: 2;
+}
+
+/* ---------------------------------------------------------------------------
+ * 5. 深色 / 品牌色容器内的焦点环局部覆盖（08 补充规格 S3）
+ *    --ring 基值 #0f172a 压在 #1a4f8b 页头 / 主色按钮上几乎不可见，
+ *    故凡深色容器加 class="surface-dark"，在该容器内把 --ring 换成白色
+ *    （对主色蓝 8.28:1 ✓）。写在容器作用域，不写进任何 shadcn 组件。
+ *    ⚠ 第 2 周写 SiteHeader / AdminSidebar / 主色按钮容器时必加。
+ *    高对比度模式下本覆盖让位于 html[data-a11y-contrast="on"] 的黑色环（21:1）。
+ * ------------------------------------------------------------------------- */
+@layer components {
+  .surface-dark {
+    --ring: #ffffff;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. 基础层
+ * ------------------------------------------------------------------------- */
+@layer base {
+  /* 字号缩放的唯一出口：根字号随 data-a11y-font 变化。
+     Tailwind 的字号与间距均为 rem → 整体等比放大（WCAG 1.4.4 推荐做法）；
+     --w-page 用 px → 容器不随字号变宽，200% 时不会横向溢出。
+     断点用 rem → 放大字号时布局提前切到窄屏形态。 */
+  html {
+    font-size: calc(1rem * var(--font-scale, 1));
+    @apply font-sans;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* 焦点环（08 补充规格 S3）：本层只给 --ring 赋值，不做别的。
+     · 浅色表面 #0f172a —— 组件自带的 focus-visible:ring-ring/50 是 50% 透明，
+       合成后对白 3.41:1、对 #f5f7fa 3.36:1，均 ≥ WCAG 非文字 3:1。
+     · 不写任何 :focus-visible 的 outline / box-shadow，因此不会覆盖 28 个组件
+       自带的 focus-visible:ring-3 / focus-visible:ring-ring/50 /
+       focus-visible:border-ring。 */
+  :root {
+    --ring: #0f172a;
+  }
 }
 
 .dark {
@@ -115,16 +377,4 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
 }

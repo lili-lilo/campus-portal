@@ -65,3 +65,170 @@
 - 内容区：浅灰 `#f9fafb`
 - 卡片：白色 + 圆角 + 阴影
 - 表格：斑马纹 + hover 高亮
+
+---
+
+## T1.3 设计 token 补充规格（权威 · 2026-10-02）
+
+> **本节的地位**：依据 `11-裁决记录` A36 与 `16-测试与验收规格` 第 95 行（属性名权威）、第 250 行（T1.3 DoD）于 T1.3 开工前回写，回写义务来自 `16` 第 267 行通用 DoD「与已确认规格冲突时先改文档再改代码」。
+>
+> **本补充做三件事**：① 补齐上文**缺失**的值（字号阶梯、高对比度主题、字号缩放阶梯）；② **覆盖**上文唯一一条经实测不达标的规定（`焦点可见：ring-2 ring-blue-500`，见 S3）；③ 定义 token 命名，使 `00` §5 的 DoD 可被机械核对。
+>
+> **上文其余数值一律不变**（`#1a4f8b` / `#c9a961` / `#ffffff` / `#f5f7fa` / `#1f2937` / `#6b7280` / `#e5e7eb` / `#f9fafb` / 1280px / 24px / 80px / 48px / 8px-12px / 三档阴影 / 五断点）。
+
+### S0. 本补充的更正文（先声明，后给值）
+
+| 上文原文 | 处置 | 实测依据 |
+|---|---|---|
+| `焦点可见：ring-2 ring-blue-500` | **覆盖**（见 S3） | shadcn 4.21 控件用 `focus-visible:ring-3 focus-visible:ring-ring/50`，**50% 透明**；`blue-500` 合成后对白 **1.85:1**、对主色蓝 **1.51:1**，低于 WCAG 非文字 3:1 |
+| `支持字体放大 200%` | **补充为 5 档阶梯**（见 S5） | 全 `docs/` 无字号缩放阶梯 |
+| `对比度 ≥ 4.5:1` | **补充为整套高对比度变量**（见 S4） | 全 `docs/` 无高对比度变量定义 |
+| `- 图片：8px` | **保持不变** | `00` §5.1 第 3 项的"卡片/图片 12px"为笔误，已回写为"卡片 12px、图片 8px" |
+
+### S1. token 命名与落点
+
+- **落点**：`app/src/app/globals.css`。Tailwind v4 **CSS-first**，**不建** `tailwind.config.*`。
+- **形态**：**原始值写在 `:root`**，**在 `@theme inline` 中映射**（沿用 shadcn 既有约定，不替换其写法）。因此 `bg-primary` 编译为 `background-color: var(--primary)` 而非 `var(--color-primary)`，`html[data-a11y-*]` 上的变量覆盖可立即生效、**无需改任何组件文件**。
+
+**色板**
+
+| `:root` 变量 | 值 | 用途 | 对白对比度 |
+|---|---|---|---|
+| `--background` | `#ffffff` | 页面底 | — |
+| `--foreground` | `#1f2937` | 正文 | **14.68:1** ✓ |
+| `--primary` | `#1a4f8b` | 主色：按钮/链接/页头 | **8.28:1** ✓ |
+| `--primary-foreground` | `#ffffff` | 主色上的文字 | **8.28:1** ✓ |
+| `--surface` | `#f5f7fa` | 浅灰区块底 | — |
+| `--muted-foreground` | `#6b7280` | 次级文字 | **4.83:1** ✓ ⚠ 压 `--surface` 时**恰好 4.50:1**，**禁止再叠加透明度或浅色底** |
+| `--border` | `#e5e7eb` | 分隔边框 | 1.24:1（装饰性，非文字） |
+| `--input` | `#e5e7eb` | 输入框边框 | 同上 |
+| `--gold` | `#c9a961` | 辅色**点缀** | **2.25:1** ⛔ **禁止作文本/图标/细线**；仅填充块、装饰条、≥24px 大字 |
+| `--gold-text` | `#8a6d1f` | 需要"金色文字"时 | **4.90:1** ✓ |
+| `--admin-sidebar` | `#1f2937` | 后台侧边栏底 | 与白字 **14.68:1** ✓ |
+| `--admin-surface` | `#f9fafb` | 后台内容区底 | — |
+| `--ring` | `#0f172a` | 焦点环（浅色表面） | 见 S3 |
+
+**⛔ 三条禁止覆盖**（shadcn 语义已占用；改名会波及已装的 28 个组件）：
+
+1. `--accent` / `--secondary` / `--muted` 是 shadcn 的**浅色交互底**（`bg-accent` 用于菜单/下拉 hover；实测 5 处 `bg-muted`）——**不得**改成金色或文字灰。
+2. `--sidebar*` 是 shadcn 侧边栏组件专用；本项目侧边栏自研 → 用 `--admin-sidebar`，**不覆盖** `--sidebar`。
+3. `--destructive` 保持红系错误语义，**不并入色板**。
+
+**间距**
+
+| `@theme` token | 值 | 语义类 |
+|---|---|---|
+| `--container-page` | `1280px` | `max-w-page`（**用 px**，不随字号缩放，见 S5） |
+| `--spacing-gutter` | `24px` | `px-gutter` |
+| `--spacing-gutter-sm` | `16px` | 移动端左右留白 |
+| `--spacing-section` | `80px` | `py-section` |
+| `--spacing-section-sm` | `48px` | 移动端区块间距 |
+| `--spacing-card` | `24px` | `p-card` |
+
+**圆角**（**改成显式值，替换 `calc(var(--radius) * k)` 链**——这是让 08 的 8px/12px 落到既有 shadcn 类名上的唯一无返工做法）
+
+| token | 值 | 对应组件类（实测） |
+|---|---|---|
+| `--radius-lg` | `8px` | button / input / textarea / select 用 `rounded-lg` → **8px** ✓ |
+| `--radius-xl` | `12px` | card / dialog / alert-dialog 用 `rounded-xl` → **12px** ✓ |
+| `--radius-sm` / `--radius-md` | `4px` / `6px` | 小控件 |
+| `--radius-2xl` / `-3xl` / `-4xl` | `16px` / `24px` / `32px` | badge 用 `rounded-4xl` |
+| `--radius-btn` / `--radius-field` | `8px` | 语义别名（DoD 用） |
+| `--radius-card` | `12px` | 语义别名（DoD 用） |
+| `--radius-image` | `8px` | 语义别名 |
+
+**阴影**（`@theme`：`--shadow-card` / `--shadow-hover` / `--shadow-modal`）
+
+- 卡片 `0 1px 3px rgba(0,0,0,0.06)`
+- 悬浮 `0 4px 12px rgba(0,0,0,0.1)`
+- 弹窗 `0 20px 40px rgba(0,0,0,0.15)`
+
+**断点**：`--breakpoint-sm/md/lg/xl/2xl` 用 **rem** 显式声明（`40/48/64/80/96rem`）。⚠ 实测 **Tailwind v4 默认值已与 08 完全一致**（640/768/1024/1280/1536px @ 16px 根字号）→ 本项是**自文档化**，不是新增能力；用 rem 的理由见 S5。
+
+**动画**：过渡 `200ms`（区间 200–300ms 取下限）、缓动 `cubic-bezier(0.4, 0, 0.2, 1)`。
+
+### S2. 字体（含一处**必须修的既有缺陷**）
+
+**缺陷（已在当前落盘文件中确认）**：`globals.css` 的 `@theme inline` 写了 `--font-sans: var(--font-sans)` —— **自引用**；而 `layout.tsx` 只提供了 `--font-geist-sans` / `--font-geist-mono`。结果：`font-sans` 与 `font-heading` 解析到**未定义变量**，`html` 上的 `font-sans` 实际回落为浏览器默认字体，`next/font` 加载的 Geist Sans **从未生效**。
+
+**修法**：
+
+- `--font-sans: var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif`（英文在前、中文栈在后；字族顺序：拉丁 → macOS 中文 → Windows 中文 → Linux 中文 → 系统回落）
+- `--font-heading: var(--font-sans)`
+- `--font-mono: var(--font-geist-mono), "SF Mono", "Menlo", "Consolas", "Liberation Mono", "Courier New", "PingFang SC", "Microsoft YaHei", ui-monospace, monospace`（与 `--font-sans` 同理，带 CJK 回落；T1.3 裁决补，原"不动"表述作废）
+- 字重：标题 `600–700`；正文 `400`
+- 行高：正文 `1.75`（→ `--leading-body: 1.75`；08 唯一行高数值）
+- **字号阶梯：08 未规定 → T1.3 不自创**，沿用 Tailwind v4 默认 `--text-xs … --text-9xl`。无规格依据的自创阶梯属过度设计。
+
+### S3. 焦点环（**覆盖** 08 原文的 `ring-2 ring-blue-500`）
+
+**实测前提**：shadcn 4.21 的控件统一为 `outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50`。即焦点指示 = **3px 环 @50% 透明度** + **1px 全不透明边框**，颜色都取 `var(--ring)`。所以有效对比度必须按"**50% 合成到背景上**"计算。
+
+| `--ring` 候选 | 50% 合成后对白 | 对 `#f5f7fa` | 合成在主色蓝上对蓝 |
+|---|---|---|---|
+| `#3b82f6`（= 08 原文 blue-500） | **1.85:1 ✗** | 1.80 ✗ | 1.51 ✗ |
+| `#1a4f8b`（品牌蓝） | 2.49:1 ✗ | 2.43 ✗ | 1.00 ✗ |
+| `#1f2937` | 3.05:1 ⚠ 贴线 | 3.00 ⚠ | 1.36 ✗ |
+| **`#0f172a`（采用）** | **3.41:1 ✓** | **3.36:1 ✓** | 1.54 ✗ |
+| `#000000` | 3.95:1 ✓ | 3.91:1 ✓ | 1.80 ✗ |
+
+**结论：没有任何单一颜色能同时满足"浅色背景"与"品牌蓝背景"**。故定义为：
+
+1. **浅色表面**：`--ring: #0f172a`（环 3.41:1 ✓，同时 `focus-visible:border-ring` 的不透明边框对白 **17.4:1**）。
+2. **深色 / 品牌色容器内**（页头、主色按钮、后台深色侧边栏）：局部覆盖 `--ring: #ffffff`（对主色蓝 **8.28:1** ✓）。
+   → **这是第 2 周写 `SiteHeader` / `AdminSidebar` / 主色按钮容器时的必做项，不是可选项**；**禁止**通过修改 28 个 shadcn 文件来实现（那正是 A36 要避免的返工）。
+3. **高对比度模式**：`--ring: #000000`（3.95:1 ✓）。
+4. 环宽沿用 `ring-3`（3px ≥ 08 的 2px）。
+
+### S4. 高对比度主题（`html[data-a11y-contrast="on"]`）
+
+08 原文只有"对比度 ≥ 4.5:1"一句，**无变量定义** → 本节为新增权威值。原则：**所有文字 ≥ 7:1**（超过 4.5:1 下限），**去掉浅灰底**，**边框提为黑**，辅色改用可作文字的金。
+
+| 变量 | 常规 | 高对比度 | 依据 |
+|---|---|---|---|
+| `--background` | `#ffffff` | `#ffffff` | — |
+| `--foreground` | `#1f2937` | `#000000` | 21:1 |
+| `--primary` | `#1a4f8b` | `#0b3a6b` | 11.46:1 |
+| `--primary-foreground` | `#ffffff` | `#ffffff` | 11.46:1 |
+| `--surface` | `#f5f7fa` | `#ffffff` | 取消浅灰 |
+| `--muted` / `--accent` / `--secondary` | 浅灰系 | `#ffffff` | 与黑边框配合 |
+| `--muted-foreground` | `#6b7280` | `#1f2937` | 14.68:1 |
+| `--border` / `--input` | `#e5e7eb` | `#000000` | 21:1 |
+| `--card` / `--popover` | `#ffffff` | `#ffffff` | — |
+| `--gold` | `#c9a961` | `#8a6d1f` | 4.90:1（可作文字） |
+| `--ring` | `#0f172a` | `#000000` | 3.95:1（/50 合成） |
+| `--admin-sidebar` | `#1f2937` | `#000000` | — |
+| `--admin-surface` | `#f9fafb` | `#ffffff` | — |
+| `--destructive` | 红系 | **`--destructive: #991b1b`**（8.31:1；默认 `#E7000B` 实测 4.77:1，满足 ≥4.5:1 但达不到 S4 抬头"所有文字 ≥7:1"原则） | 错误态仍须可读 |
+
+**验收口径**（对齐 `16` 第 95 行 + 第 360 行）：只断言 `<html>` 的 `data-a11y-contrast` 属性值与持久化，**不做视觉回归**；对比度数值由本表保证。
+
+### S5. 字号缩放（`html[data-a11y-font="…"]`）
+
+08 原文只有"支持字体放大 200%"，**无阶梯、无量纲** → 本节为新增权威值。
+
+- **阶梯 5 档**：`100` / `125` / `150` / `175` / `200`（覆盖 100%~200%）。
+- **机制**：`html { font-size: calc(1rem * var(--font-scale, 1)) }`；`html[data-a11y-font="125"] { --font-scale: 1.25 }`，其余同理。Tailwind 的字号与间距均为 **rem** → 整体等比放大，符合 WCAG 1.4.4 的推荐做法。
+- **rem/px 策略（关键）**：
+  - **断点用 rem** → 根字号放大时 `md:`/`lg:` 提前命中，布局自动切到窄屏形态；
+  - **页面最大宽 `--container-page` 用 px** → 容器不随字号变宽，**避免 200% 时横向溢出**。
+- **持久化与首帧**：`localStorage`（键 `campus-a11y`，值 `{font, contrast}`），并在 `<head>` 用**阻塞式内联脚本**在首帧前写 `<html>` 属性 —— 避免 FOUC 与 hydration 不一致。
+- **服务端渲染默认值**：`<html data-a11y-font="100" data-a11y-contrast="off">` 必须由 SSR 输出，`16` 第 95 行的断言依赖它。
+- **不可触碰**：`layout.tsx` 的 `LayoutProps<"/">` 写法不变（`00` §5.3）；新增内联脚本不影响该类型。
+- 属性名以 `docs/16` 第 95 行为**唯一权威**（`data-a11y-font` / `data-a11y-contrast`）。
+
+### S6. 明确不做
+
+- 沿用 A36：朗读（TTS）、纯文本模式、GB/T 37668 或 WCAG 认证、读屏软件全量回归。
+- **暗色模式：全 `docs/` 零条款** → 第 1 周**不动** `globals.css` 现有的 `.dark` 块（脚手架遗留），登记为 `00` §4 的 **U-9**，第 5 周随无障碍面板一并裁决"做/不做"。
+- 视觉回归（`toHaveScreenshot`）：`16` 第 360 行已裁决不做。
+
+### S7. T1.3 DoD 的机械核对口径
+
+| `00` §5.2 的 DoD | 可机械核对的方式 |
+|---|---|
+| token 可用 | demo 页出现并渲染 `bg-primary` / `text-muted-foreground` / `rounded-card` / `shadow-card` / `max-w-page` / `py-section` |
+| 高对比度可切换 | 切换后 `<html data-a11y-contrast="on">`，刷新后仍为 `on` |
+| 字号缩放可切换 | 5 档均可用，`<html data-a11y-font>` 刷新后保持 |
+| 焦点环可见 | `--ring` 值符合 S3；`--ring: #3b82f6` **视为不通过** |
+| 不返工 | 28 个 shadcn 组件文件**零修改**（改的只有 `globals.css`） |
