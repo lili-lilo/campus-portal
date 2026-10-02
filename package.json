@@ -1,0 +1,12 @@
+{
+  "name": "campus-portal-workspace",
+  "private": true,
+  "description": "仓库根：仅用于承载 git 钩子（husky）。应用代码与依赖在 app/ 下。",
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

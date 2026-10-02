@@ -1,0 +1,47 @@
+# 仓库根 .gitignore —— 面向 **monorepo 外层**
+# 应用自身的 .gitignore 在 app/.gitignore（更详细，含 Next/Prisma/Playwright 产物）
+
+# 依赖
+node_modules/
+
+# pnpm 内容寻址存储（缓存，非源码）
+# 注意：本工作区有两处 —— D:\workspace\.pnpm-store（pnpm 12 的 packageManager 锁定特性
+# 会在此建 store）与 D:\.pnpm-store（全局 store）。两处都属缓存，均不入库。
+.pnpm-store/
+
+# 环境变量（真实值不进仓库；模板保留）
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# 数据库（SQLite 本地库）
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 构建产物
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# 测试产物
+coverage/
+test-results/
+playwright-report/
+
+# husky 的运行时 shim 目录（由 `husky` 命令生成，内容含 husky 自身脚本）
+.husky/_/
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+pnpm-debug.log*

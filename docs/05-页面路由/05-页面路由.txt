@@ -1,0 +1,76 @@
+
+---
+
+## docs/05-页面路由.md
+
+```markdown
+# 页面路由
+
+> 本文件已被 `11-裁决记录` 部分修订，冲突处以 `11`~`16` 为准。
+> 已修订处：① 路由树加 locale 段（A21）；② 新增保留 slug 黑名单与 `[channel]` 四分支规则（A19/A20）；③ 新增根级拦截文件、`sitemap.ts`、`robots.ts`（A22/A23）。
+> 完整路由规格见 `15-路由规格`（待编写）；未修订处仍为原始需求输入。
+
+## 前台路由
+
+```text
+app/
+├── proxy.ts                        # 根级拦截（A22）：① next-intl locale 协商与重写 ② /admin/* 未登录跳转
+│                                   # ⚠ Next 16 把 Middleware 改名为 Proxy（A39），命名以 T1.1 脚手架实测为准
+├── sitemap.ts                      # MetadataRoute：动态读 Site/Channel/Article（A23）
+├── robots.ts                       # MetadataRoute（A23）
+├── [locale]/                       # 非默认语言带前缀：/en/main/news（A21）
+└── (site)/
+    └── [site]/                     # site = main / cs / ee / ba（默认 zh 不带前缀：/main/news）
+        ├── page.tsx                # 首页
+        ├── news/
+        │   ├── page.tsx            # 新闻列表
+        │   └── [id]/
+        │       └── page.tsx        # 新闻详情
+        ├── notice/
+        │   └── page.tsx            # 通知公告
+        ├── about/
+        │   ├── page.tsx            # 学校简介
+        │   ├── history/page.tsx    # 历史沿革
+        │   ├── leaders/page.tsx    # 现任领导
+        │   ├── organization/page.tsx # 组织机构
+        │   └── contact/page.tsx    # 联系我们
+        ├── departments/
+        │   └── page.tsx            # 院系设置
+        ├── faculty/
+        │   └── page.tsx            # 师资队伍
+        ├── admissions/
+        │   ├── page.tsx            # 招生就业
+        │   ├── undergraduate/page.tsx
+        │   └── graduate/page.tsx
+        ├── research/
+        │   └── page.tsx            # 科学研究
+        ├── disclosure/
+        │   └── page.tsx            # 信息公开
+        ├── search/
+        │   └── page.tsx            # 全站搜索
+        ├── sitemap/
+        │   └── page.tsx            # 站点地图（人看的页面，与 sitemap.xml 是两件事，A23）
+        └── [channel]/
+            └── page.tsx            # 通用栏目页（动态，按 Channel.type 四分支，A20）
+```
+
+## 保留 slug 黑名单（A19）
+
+以下 slug 已被**静态路由占用**，数据层禁止再用作 `Channel.slug`（`[channel]` 永远匹配不到它们）：
+
+```text
+news  notice  about  departments  faculty  admissions  research  disclosure  search  sitemap
+```
+
+**三重保障**：① Next.js 静态路由天然优先；② seed 生成栏目时加断言拒绝（T1.5）；③ 后台新建栏目时校验并提示"该名称已被系统页面占用"。
+
+## `[channel]` 四分支规则（A20）
+
+`[channel]/page.tsx` 内按 `Channel.type` 分流，一个动态路由吃下四种栏目类型：
+
+| `Channel.type` | 渲染 |
+|---|---|
+| `list` | 该栏目下的文章列表（分页、按 `publishTime` 倒序） |
+| `page` | 取 `Page` 模型渲染单页正文（学校简介、历史沿革等） |
+| `link` | 服务端 302 跳转到 `Channel` 配置的外部地址 |
+| `form` | 渲染 `Channel.formId` 指向的表单（`Form` + `FormData`） |

@@ -1,0 +1,18 @@
+app/api/
+├── auth/[...nextauth]/route.ts
+├── articles/
+│   ├── route.ts                   # GET, POST
+│   └── [id]/route.ts              # GET, PUT, DELETE
+├── channels/
+│   ├── route.ts
+│   └── [id]/route.ts
+├── media/
+│   └── upload/route.ts
+├── search/
+│   └── route.ts
+├── audits/
+│   └── route.ts
+├── statistics/
+│   └── route.ts
+└── forms/
+    └── route.ts

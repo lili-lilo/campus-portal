@@ -1,0 +1,14 @@
+# husky pre-commit（husky v9 格式：纯 shell 脚本，无需 shebang 与 husky.sh 引导）
+#
+# 由 `D:\workspace`（仓库根）的 husky 生成并调用：
+#   git 的 core.hooksPath 被 husky 设为 .husky/_
+#   .husky/_/pre-commit 是 shim → 调用本文件
+#
+# 作用：只对**暂存文件**做 lint + format，避免全量检查拖慢提交。
+# 规则定义在 app/package.json 的 "lint-staged" 字段。
+
+# `--dir <dir>` 是 pnpm 的全局选项（短别名 -C），实测存在于 pnpm 12.8.1：
+#   dist/pnpm.mjs 中：{ name: "--dir <dir>" ... shortAlias: "-C" }
+# 这里显式加 `exec`：lint-staged 在 app/node_modules/.bin 下，
+# `exec` 明确表示"运行该目录下的本地二进制"，语义比裸命令更清晰、更不易受脚本名冲突影响。
+pnpm --dir app exec lint-staged

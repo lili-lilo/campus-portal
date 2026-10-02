@@ -1,0 +1,83 @@
+# ============================================================================
+# 环境变量样例 —— 本文件是"模板"，复制为 .env 后填入真实值
+#
+# 从 docs/环境变量.txt 重写而来（原文件已被本版本取代，见 docs/11 §8 下游修订清单）
+#
+# 变更点（相对原文件）：
+#   1. NEXTAUTH_SECRET / NEXTAUTH_URL  →  AUTH_SECRET / AUTH_URL（Auth.js v5 命名，A4）
+#   2. 新增 AUTH_TRUST_HOST              →  Vercel 等平台自托管反向代理下必需
+#   3. 新增 DIRECT_URL                   →  生产迁移必需；Supabase pooler 不支持迁移
+#                                           所需的会话级操作（A31）
+#   4. 删除 NEXT_PUBLIC_SUPABASE_* / SUPABASE_SERVICE_ROLE_KEY
+#                                        →  本期不用 Supabase Auth，仅用其 PostgreSQL
+#                                           与 Storage；Storage 的访问走服务端凭据，
+#                                           不需要这三个前端变量
+#   5. DATABASE_URL 本地路径修正         →  file:./prisma/dev.db（相对项目根，与
+#                                           prisma.config.ts 的位置一致）
+#   6. 新增 NEXT_PUBLIC_SITE_URL         →  SEO 的 canonical / sitemap / OG 需要绝对地址
+#
+# 使用方式：
+#   cp .env.example .env        # 然后填值；.env 不进仓库（见 .gitignore）
+#
+# 读取方说明：
+#   - Next.js 进程：自动加载 .env / .env.local
+#   - Prisma CLI（prisma.config.ts）：**不会**自动读取 .env，
+#     需 `import "dotenv/config"` 或 `node --env-file=.env`
+#     （见 prisma.config.ts 顶部 TODO(T1.1)）
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# 本地开发（SQLite）
+# ---------------------------------------------------------------------------
+
+# 开发库文件路径。相对项目根目录（不是相对 schema.prisma）。
+DATABASE_URL="file:./prisma/dev.db"
+
+# 本地无需 DIRECT_URL；Prisma CLI 直接用上面的 DATABASE_URL 迁移。
+# DIRECT_URL=""
+
+# Auth.js v5 会话签名密钥。生成方式：npx auth secret 或 openssl rand -base64 32
+AUTH_SECRET="dev-only-secret-change-me"
+
+# 应用基础地址。Auth.js 回调、邮件链接等使用。
+AUTH_URL="http://localhost:3000"
+
+# 在非 Vercel 环境（或自托管反向代理）下需要显式信任 Host 头。
+AUTH_TRUST_HOST=true
+
+# 站点公开地址，用于 SEO 的 canonical / sitemap.xml / robots.txt / OG 图（A23）
+NEXT_PUBLIC_SITE_URL="http://localhost:3000"
+
+
+# ---------------------------------------------------------------------------
+# 生产（Supabase PostgreSQL + Storage）
+# ---------------------------------------------------------------------------
+# 部署到 Vercel 时，在项目 Settings → Environment Variables 中配置以下变量。
+# 注意：**两条连接串都要配**，它们用途不同（A31）。
+
+# ① 运行时连接串：走 Supabase 连接池（pgbouncer）。
+#    必须带 pgbouncer=true；connection_limit=1 是 Serverless 环境的推荐值。
+# DATABASE_URL="postgres://postgres.[REF]:[PASSWORD]@[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+
+# ② 迁移连接串：直连（不走 pooler）。
+#    仅由 prisma.config.ts 的 datasource.url 读取，供 prisma migrate 使用。
+# DIRECT_URL="postgres://postgres.[REF]:[PASSWORD]@[REGION].pooler.supabase.com:5432/postgres"
+
+# Auth.js 在生产环境的密钥与地址（重新生成，不要复用开发值）
+# AUTH_SECRET="<生产密钥>"
+# AUTH_URL="https://你的域名"
+# NEXT_PUBLIC_SITE_URL="https://你的域名"
+
+# 媒体存储（A33：StorageAdapter 的 SupabaseStorageAdapter 实现使用）
+# SUPABASE_URL="https://[REF].supabase.co"
+# SUPABASE_SERVICE_ROLE_KEY="<service role key，仅服务端使用，切勿加 NEXT_PUBLIC_ 前缀>"
+# SUPABASE_STORAGE_BUCKET="media"
+
+
+# ---------------------------------------------------------------------------
+# 明确不需要的变量（记录于此，避免后来者再找）
+# ---------------------------------------------------------------------------
+# NEXTAUTH_SECRET / NEXTAUTH_URL  → Auth.js v5 已改用 AUTH_* 命名
+# NEXT_PUBLIC_SUPABASE_ANON_KEY   → 本期不使用 Supabase Auth
+# SMTP_* / SMS_*                  → 不接短信与邮件（A1）
+# ELASTICSEARCH_URL / REDIS_URL   → 不采用（A2）

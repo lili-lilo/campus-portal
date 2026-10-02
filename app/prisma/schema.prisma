@@ -1,0 +1,78 @@
+// ============================================================================
+// R1 冒烟用最小 schema —— **不是最终 schema**
+//
+// 目的：验证 Next 16 + Prisma 7 + Auth.js v5 三者能否共存（docs/12 §5 R1）。
+// 最终 schema（24 个 model）见 docs/13-数据模型-v2.md §2，由 **T1.4** 落盘。
+//
+// 为什么包含 4 个 model：
+//   @auth/prisma-adapter 在运行时会访问 user / account / session / verificationToken
+//   四张表（实测其 index.js 的 Prisma 调用）。只建 User 表会在登录时报错。
+//   与 docs/13 的缺口 5 / A10 一致（Auth.js 标准表）。
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  // url 由 prisma.config.ts 提供（Prisma 7）
+}
+
+/// 最小 User：只保留 R1 需要的字段
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique
+  password String
+  role     String  @default("editor")
+
+  // Auth.js 必需字段
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+}
+
+/// Auth.js 标准表（字段名由适配器约定，不可改）
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

@@ -1,0 +1,34 @@
+app/
+└── admin/
+    ├── layout.tsx                 # 后台布局（侧边栏+顶栏）
+    ├── login/
+    │   └── page.tsx               # 登录页
+    ├── dashboard/
+    │   └── page.tsx               # 仪表盘（统计图表）
+    ├── articles/
+    │   ├── page.tsx               # 文章列表
+    │   ├── new/page.tsx           # 新建文章
+    │   └── [id]/
+    │       └── edit/page.tsx      # 编辑文章
+    ├── channels/
+    │   └── page.tsx               # 栏目管理（树形）
+    ├── media/
+    │   └── page.tsx               # 媒体库
+    ├── users/
+    │   └── page.tsx               # 用户管理
+    ├── roles/
+    │   └── page.tsx               # 角色权限
+    ├── sites/
+    │   └── page.tsx               # 站点管理
+    ├── audits/
+    │   └── page.tsx               # 审核待办
+    ├── forms/
+    │   └── page.tsx               # 表单管理
+    ├── comments/
+    │   └── page.tsx               # 评论管理
+    ├── messages/
+    │   └── page.tsx               # 留言管理
+    ├── statistics/
+    │   └── page.tsx               # 统计分析
+    └── settings/
+        └── page.tsx               # 系统设置
