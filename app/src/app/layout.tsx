@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { getLocale } from "next-intl/server";
 
 import { A11Y_INIT_SCRIPT } from "@/lib/a11y";
@@ -29,9 +30,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // T1.3 · 无障碍偏好的 SSR 默认属性 + 防 FOUC 内联脚本
   //   · data-a11y-font / data-a11y-contrast 的默认值必须等于 @/lib/a11y 的
   //     DEFAULT_FONT_SCALE / DEFAULT_CONTRAST（内联脚本的回落值也是它们）
-  //   · 内联脚本在 <head> 中同步执行，早于首次绘制；localStorage 有值时会把
-  //     这两个属性改写成用户档位 → <html> 需要 suppressHydrationWarning
+  //   · 脚本在首次绘制前同步执行，localStorage 有值时会把这两个属性改写成用户档位
+  //     → <html> 需要 suppressHydrationWarning
   //     （官方依据：next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md）
+  //
+  // ⚠ **T2.3 修 Bug 1**：原写法 `<script dangerouslySetInnerHTML>` 直接渲染在组件里，
+  //   React 19 会警告「Scripts inside React components are never executed when rendering
+  //   on the client」且**客户端渲染分支确实不执行**。改用 `next/script`：
+  //     · 随包文档 `script.md` L75：`beforeInteractive` **必须放在根 layout**（本文件正是）
+  //     · L69/L156：该策略由**服务端注入初始 HTML**、且**永远注入 `<head>`** → 早于 hydration 执行
+  //     · 因此不再需要手写 `<head>` 包裹；`id` 用于去重
+  //   （为什么不用 `<template>`+提取：template 内脚本是惰性的、不会执行，仍需另一个可执行脚本去搬运，
+  //     逻辑自环；见 `docs/00` §8 #51）
   return (
     <html
       lang={locale}
@@ -40,11 +50,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       data-a11y-contrast="off"
       suppressHydrationWarning
     >
-      {/* 防 FOUC：读 localStorage 并把档位写回 <html>（脚本内容见 @/lib/a11y） */}
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: A11Y_INIT_SCRIPT }} />
-      </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {/* 防 FOUC：读 localStorage 并把档位写回 <html>（脚本内容见 @/lib/a11y） */}
+        <Script
+          id="a11y-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: A11Y_INIT_SCRIPT }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

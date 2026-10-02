@@ -1,36 +1,67 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
+import { HeroCarousel, type HeroSlide } from "@/components/home/hero-carousel";
+import { HomeDepartment } from "@/components/home/home-department";
+import { NewsList } from "@/components/home/news-list";
+import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
+import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
+import { SiteCards, type SiteCardItem } from "@/components/home/site-cards";
+import { SectionTitle } from "@/components/ui/section-title";
+import type { AppLocale } from "@/i18n/routing";
 import { prisma } from "@/lib/prisma";
+import { getSiteContext, type SiteContext } from "@/lib/site-context";
 
 export const metadata: Metadata = { title: "首页" };
 
-// ISR：docs/15 §6 规定首页 revalidate = 300
+// ISR：docs/15 §6 规定首页 revalidate = 300（动态按需渲染 + 300s 缓存，见 docs/00 §8 #49）
 export const revalidate = 300;
 
 /**
- * 首页 —— **T1.8 前的预览版**（第一次让 /main 真读数据库渲染）
+ * 首页（T2.3 组装）—— 主站模板 + 子站简化模板分流
+ * ============================================================================
+ * 分流：`Site.template === "department"` → `HomeDepartment`（U7 简化模板，自带查询）；
+ *        否则本文件的主站模板：轮播 → 快捷入口 → 学校要闻 → 通知公告 → 院系设置。
  *
- * 数据来源（全部经 `@/lib/prisma` 单例，读 seed 落盘的真实数据）：
- *   · `Site` 全量 4 个站点（顶部站点栏）
- *   · 主站最新 10 篇 `published` 文章（学校要闻，含 `channel.name`）
- *   · 主站 10 个栏目（导航占位）
+ * 数据：全部经 `@/lib/prisma` 单例**直查**（Server Component，不走 API）。
+ *   站点上下文复用 `getSiteContext()`（layout 已调用，`cache()` 保证同请求只查一次）。
+ * ⚠ **不加 `generateStaticParams`**：T2.1 定案 —— 保住"CI build 不需要 DB"（docs/00 §8 #49）。
+ * ⚠ 本文件**不使用 `<main>`**：T2.1 已在 `[site]/layout.tsx` 渲染 `<main id="main">`（避免嵌套）。
  *
- * T1.10 替换为正式首页：`listArticles(top/recommend)` + `listMedia(folder=carousel)` +
- * `getChannelTree` + `listNavigations`（docs/14 §5），并按 U7 区分子站简化模板。
+ * 文案：区块标题复用既有 i18n key（`home.latestNews` / `home.notices` / `home.quickLinks` /
+ *       `nav.departments`）；组件内部的"更多""暂无内容"等仍为硬编码，归 **T2.8** 统一迁 i18n。
  */
 
-// T1.10：docs/13 §5.1 R2 要求「展示层只允许通过一个日期工具模块格式化」，
-// 该实例应抽到 `src/lib/date.ts` 共用；本轮受「只改一个文件」约束先内联。
-// 用 en-CA + Asia/Shanghai 得到 docs/13 §5.5 的列表页格式 YYYY-MM-DD。
-const listDateFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Shanghai",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+const ARTICLE_SELECT = {
+  id: true,
+  title: true,
+  slug: true,
+  summary: true,
+  cover: true,
+  publishTime: true,
+  channel: { select: { name: true, slug: true } },
+};
 
-function formatListDate(value: Date | null): string {
-  return value ? listDateFormatter.format(value) : "—";
+/**
+ * 主站快捷入口 —— **硬编码占位**（T2.3 判断点 1 的"若无"分支）
+ *
+ * 依据：`Config` 表里只有 `seo.* / site.* / security.* / watermark.* / sensitive_words.*`，
+ * **没有任何"快捷入口"表或字段**（已核对 seed 的 `seedConfigs()`）。
+ * TODO(T2.6 / 第 3~4 周)：改由 `Config(group='site')` 或新的 Server Action 提供，届时删除本常量。
+ */
+const MAIN_QUICK_LINKS: QuickLinkItem[] = [
+  { label: "办事大厅", href: "https://example.edu.cn/hall", icon: "landmark" },
+  { label: "邮箱系统", href: "https://mail.example.edu.cn", icon: "mail" },
+  { label: "图书馆", href: "https://example.edu.cn/library", icon: "library" },
+  { label: "教务系统", href: "https://example.edu.cn/jw", icon: "bookopen" },
+  { label: "一卡通", href: "https://example.edu.cn/card", icon: "award" },
+  { label: "校园地图", href: "https://example.edu.cn/map", icon: "building2" },
+];
+
+/** 栏目树摊平（顶层 + 一级子栏目），用于按 slug 取中文标签 */
+function flattenChannels(context: SiteContext) {
+  return [...context.channels, ...context.channels.flatMap((channel) => channel.children)];
 }
 
 export default async function SiteHomePage({
@@ -38,100 +69,118 @@ export default async function SiteHomePage({
 }: {
   params: Promise<{ locale: string; site: string }>;
 }) {
-  const { site } = await params;
+  const { locale, site: siteSlug } = await params;
 
-  const sites = await prisma.site.findMany({
-    select: { id: true, slug: true, name: true },
-    orderBy: { slug: "asc" },
-  });
+  const context = await getSiteContext(siteSlug);
+  if (!context) {
+    notFound();
+  }
 
-  const mainSite = await prisma.site.findUnique({
-    where: { slug: "main" },
-    select: { id: true },
-  });
+  // U7：子站走简化模板（不复用主站模板）
+  if (context.site.template === "department") {
+    return <HomeDepartment context={context} />;
+  }
 
-  const articles = mainSite
-    ? await prisma.article.findMany({
-        where: { siteId: mainSite.id, status: "published", deletedAt: null },
-        orderBy: { publishTime: "desc" },
-        take: 10,
-        select: {
-          id: true,
-          title: true,
-          publishTime: true,
-          channel: { select: { name: true } },
-        },
-      })
-    : [];
+  const current: AppLocale = locale === "en" ? "en" : "zh";
+  const tHome = await getTranslations({ locale: current, namespace: "home" });
+  const tNav = await getTranslations({ locale: current, namespace: "nav" });
 
-  const channels = mainSite
-    ? await prisma.channel.findMany({
-        where: { siteId: mainSite.id, status: true },
-        // 栏目按 sort 展示（seed 里各栏目 createdAt 相同，按「最新」排没有区分度）
-        // → T1.10 改用 getChannelTree（docs/14 §5.3）
-        orderBy: [{ sort: "asc" }, { name: "asc" }],
-        take: 10,
-        select: { slug: true, name: true },
-      })
-    : [];
+  const slug = context.site.slug;
+  const now = new Date();
+
+  const publishedWhere = {
+    siteId: context.site.id,
+    status: "published",
+    deletedAt: null,
+    OR: [{ publishTime: null }, { publishTime: { lte: now } }],
+  };
+
+  const [carouselMedia, news, noticeArticles, researchArticles, subSites] = await Promise.all([
+    // ① 轮播：本站 carousel 素材最新 5 张（实测 seed 的 carousel 素材全部挂 main）
+    prisma.media.findMany({
+      where: { siteId: context.site.id, folder: "carousel", deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, name: true, path: true },
+    }),
+    // ③ 学校要闻：置顶优先，其次按发布时间倒序
+    prisma.article.findMany({
+      where: publishedWhere,
+      orderBy: [{ top: "desc" }, { publishTime: "desc" }],
+      take: 6,
+      select: ARTICLE_SELECT,
+    }),
+    // ④ 通知公告 tab
+    prisma.article.findMany({
+      where: { ...publishedWhere, channel: { slug: "notice" } },
+      orderBy: { publishTime: "desc" },
+      take: 6,
+      select: ARTICLE_SELECT,
+    }),
+    // ④ 科学研究 tab（seed 主站确实有 research 栏目 → 双 tab）
+    prisma.article.findMany({
+      where: { ...publishedWhere, channel: { slug: "research" } },
+      orderBy: { publishTime: "desc" },
+      take: 6,
+      select: ARTICLE_SELECT,
+    }),
+    // ⑤ 院系设置：除 main 外的在营站点（实测 3 个：cs / ee / ba）
+    prisma.site.findMany({
+      where: { slug: { not: "main" }, status: true },
+      orderBy: { createdAt: "asc" },
+      select: { slug: true, name: true, description: true },
+    }),
+  ]);
+
+  const slides: HeroSlide[] = carouselMedia.map((media) => ({
+    id: media.id,
+    title: media.name,
+    image: media.path,
+    // T2.2 的 `HeroSlide.link` 是必填 string；seed 的 `Media` 与文章没有直接关联
+    //（关联在 `Article.mediaIds` JSON 串里，反查代价高）→ 先统一指向新闻中心。
+    // TODO(第 4 周)：按 `Article.mediaIds` 反查出真实文章，或给 Media 加 `articleId`。
+    link: `/${slug}/news`,
+  }));
+
+  const flatChannels = flattenChannels(context);
+  const labelOf = (channelSlug: string, fallback: string) =>
+    flatChannels.find((channel) => channel.slug === channelSlug)?.name ?? fallback;
+
+  const noticeTabs: NoticeTab[] = [
+    { key: "notice", label: labelOf("notice", "通知公告"), items: noticeArticles },
+    { key: "research", label: labelOf("research", "科学研究"), items: researchArticles },
+  ];
+
+  const sites: SiteCardItem[] = subSites;
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-10">
-      {/* ① 站点栏：4 个站点名横向排列（纯文字；当前站点加粗） */}
-      <section className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        {sites.map((item) => (
-          <span
-            key={item.id}
-            className={
-              item.slug === site ? "font-semibold text-foreground" : "text-muted-foreground"
-            }
-          >
-            {item.name}
-          </span>
-        ))}
+    <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">
+      {/* ① 焦点图轮播（0 条则不渲染该区块） */}
+      {slides.length > 0 ? <HeroCarousel items={slides} /> : null}
+
+      {/* ② 快捷入口（6 项；数据源待第 3~4 周接 Config/Server Action） */}
+      <section aria-label={tHome("quickLinks")}>
+        <QuickLinks links={MAIN_QUICK_LINKS} />
       </section>
 
-      {/* ② 学校要闻：主站最新 10 篇已发布文章 */}
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight">学校要闻</h2>
-        {articles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">暂无已发布文章（请先执行 pnpm db:seed）。</p>
-        ) : (
-          <ul className="divide-y divide-border/60">
-            {articles.map((article) => (
-              <li key={article.id} className="flex items-baseline justify-between gap-4 py-2">
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  <span className="text-muted-foreground">{article.channel.name} · </span>
-                  {article.title}
-                </span>
-                <time className="shrink-0 text-xs text-muted-foreground">
-                  {formatListDate(article.publishTime)}
-                </time>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* ③ 学校要闻 */}
+      <NewsList
+        items={news}
+        title={tHome("latestNews")}
+        moreHref={`/${slug}/news`}
+        siteSlug={slug}
+      />
+
+      {/* ④ 通知公告（双 tab；区块标题即 tab 标签，避免重复，故不加 SectionTitle） */}
+      <section aria-label={tHome("notices")}>
+        <NoticeTabs tabs={noticeTabs} siteSlug={slug} />
       </section>
 
-      {/* ③ 栏目：主站 10 个栏目（导航占位） */}
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight">栏目</h2>
-        {channels.length === 0 ? (
-          <p className="text-sm text-muted-foreground">暂无栏目数据。</p>
-        ) : (
-          <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            {channels.map((channel) => (
-              <li key={channel.slug} className="text-muted-foreground">
-                {channel.name}
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* ⑤ 院系设置 */}
+      <section className="space-y-4">
+        <SectionTitle title={tNav("departments")} moreHref={`/${slug}/departments`} />
+        <SiteCards sites={sites} />
       </section>
-
-      <div className="mt-8 text-xs text-muted-foreground">
-        T1.8 前的预览版，第 2 周替换为正式首页
-      </div>
-    </main>
+    </div>
   );
 }

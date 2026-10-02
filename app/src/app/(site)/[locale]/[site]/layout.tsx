@@ -1,15 +1,25 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { getSiteContext } from "@/lib/site-context";
+
 /**
- * 站点段布局（docs/15 §1 / §6.1：校验站点存在 + 注入站点上下文）
+ * 站点段布局（docs/15 §1 / §6.1：校验站点存在 + 注入站点上下文 + 公共 Header/Footer）
  *
- * T1.6 临时实现：站点 slug 白名单硬编码（与 T1.5 seed 的 4 个站点一致），
- * 目的是让"站点不存在 → 站点级 404"这条规格现在就能生效，且**构建期不加载 Prisma**
- *（DSH 侧 node 与 better-sqlite3 的 ABI 不匹配，构建期触碰 Prisma 会 ERR_DLOPEN_FAILED）。
- * TODO(T1.10)：改为查询 Site 表（listSites / getSiteBySlug）并做 status 校验。
+ * T2.1 起：
+ *   · 站点存在性由 **查库**（`getSiteContext` → `Site.status`）判定，替换 T1.6 的硬编码白名单
+ *     （`docs/00` §8 #37 的一处；其余两处待第 4 周随 Server Action 一并处理）
+ *   · 真实 `SiteHeader` / `SiteFooter` 挂在这一层 —— 只有这层拿得到 `site` 参数
+ *     （上一级 `(site)/[locale]/layout.tsx` 没有 `site`，放不了站点级导航）
+ *
+ * 渲染策略（实测依据：T1.7 的 `[site]/page.tsx` 同样写 `revalidate = 300`，构建产物里该路由为 `ƒ`）：
+ *   · `[site]` 段**没有** `generateStaticParams` → 路由**按需动态渲染 + 300s ISR 缓存**
+ *   · 因此**构建期不会执行 Prisma 查询**（DSH/CI 的 better-sqlite3 ABI 差异不会影响 `next build`）
+ *   · 本轮的 `revalidate` 只表达"发稿后 5 分钟内可见"的缓存意图（A25），与 `docs/15` §6 的分档一致
  */
-const SITE_SLUGS = ["main", "cs", "ee", "ba"] as const;
+export const revalidate = 300;
 
 export default async function SiteLayout({
   children,
@@ -18,17 +28,22 @@ export default async function SiteLayout({
   children: ReactNode;
   params: Promise<{ locale: string; site: string }>;
 }) {
-  const { site } = await params;
+  const { locale, site: siteSlug } = await params;
 
-  if (!(SITE_SLUGS as readonly string[]).includes(site)) {
-    // 命中站点级 not-found.tsx（docs/15 §6.2 U2 的兜底之一）
+  const context = await getSiteContext(siteSlug);
+
+  if (!context) {
+    // 站点不存在或 status=false → 命中站点级 not-found.tsx（docs/15 §6.2 U2 的兜底之一）
     notFound();
   }
 
-  // 站点上下文：子页面自行 await params 读取 site；此处只做存在性校验与语义容器
   return (
-    <div data-site={site} className="flex min-h-full flex-col">
-      {children}
+    <div data-site={context.site.slug} className="flex min-h-full flex-col bg-background">
+      <SiteHeader site={context.site} nav={context.nav} locale={locale} />
+      <main id="main" className="flex-1">
+        {children}
+      </main>
+      <SiteFooter site={context.site} nav={context.nav} locale={locale} />
     </div>
   );
 }
