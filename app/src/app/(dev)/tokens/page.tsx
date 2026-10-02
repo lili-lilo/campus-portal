@@ -1,5 +1,7 @@
 import { A11yToggle } from "@/components/a11y-toggle";
 
+import { FormDemo } from "./form-demo";
+
 /**
  * T1.3 token 验证页（Server Component）
  * ============================================================================
@@ -185,6 +187,20 @@ export default function TokensDemoPage() {
             <code>px-gutter</code>（24px）、<code>py-section</code>（80px）、
             <code>p-card</code>（24px）。
           </p>
+        </div>
+      </section>
+
+      <section className="mt-12" aria-labelledby="tokens-form">
+        <h2 id="tokens-form" className="text-lg font-semibold text-foreground">
+          5. 表单校验示例
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          自研 <code>@/components/ui/form</code>（T1.3 Step 4 / U-1）+ zod 4 +
+          <code> @hookform/resolvers@5.9.1</code>。提交只打印到控制台，不发请求；
+          空提交或填错可看到字段级提示（对应 <code>docs/16</code> M3 的验收口径）。
+        </p>
+        <div className="mt-4 rounded-card border border-border bg-card p-card shadow-card">
+          <FormDemo />
         </div>
       </section>
     </main>
