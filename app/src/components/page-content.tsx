@@ -1,4 +1,5 @@
 import { ClockIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import { formatListDate } from "@/lib/date";
@@ -15,8 +16,7 @@ import { sanitizeHtml } from "@/lib/sanitize";
  * ⚠ 该样式串是 `article-detail` 里 `PROSE_CLASS` 的**子集**（刻意不 import：那是 T2.5 文件，
  *   本轮范围不允许改它）→ 后续可把两份合并到 `src/lib/prose.ts`（见 T2.6 报告"待办"）。
  *
- * ⚠ 空态文案暂为**硬编码中文**：本轮文件范围不含 `src/i18n/messages/*.json`，
- *   无法新增 key（下一页改动时补 `page.empty` 等 key）。
+ * ⚠ 空态文案走 i18n `common.pageEmpty`（T2.6 收尾修复；此前是硬编码中文）。
  */
 
 /** 正文排版（与 article-detail 的 PROSE_CLASS 同源子集） */
@@ -49,7 +49,10 @@ type PageContentProps = {
   className?: string;
 };
 
-export function PageContent({ page, channelName, className }: PageContentProps) {
+export async function PageContent({ page, channelName, className }: PageContentProps) {
+  // Server Component → `getTranslations`（空态文案）
+  const t = await getTranslations("common");
+
   const html = sanitizeHtml(page.content ?? "");
   const hasContent = html.trim().length > 0;
 
@@ -70,7 +73,7 @@ export function PageContent({ page, channelName, className }: PageContentProps) 
         <div className={PROSE_CLASS} dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
         <p className="rounded-card border border-dashed border-border bg-surface p-card text-center text-sm text-muted-foreground">
-          该页面内容尚未发布
+          {t("pageEmpty")}
         </p>
       )}
     </article>
