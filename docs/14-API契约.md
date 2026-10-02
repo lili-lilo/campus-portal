@@ -186,7 +186,7 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 
 ---
 
-## 3. 后台 14 个页面的数据入口对照
+## 3. 后台 15 行契约表的数据入口对照（14 个菜单页面 + 单页 + 回收站）
 
 > "读"列为 Server Action 函数名（无 HTTP 端点，见 §1.2）；"写"列同理。
 
@@ -211,7 +211,7 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 | 单页编辑（学校简介等） | `getPage` / `listPages` | `createPage` / `updatePage` / `deletePage` | `Page` |
 | 回收站 | `listRecycleBin` | `restoreFromRecycle` / `purgeFromRecycle` | `Article`、`Page`、`Media`、`Comment`、`Attachment` |
 
-> **覆盖检查**：14 个后台页面 + 单页 + 回收站，全部有读写入口；每个 `13` 的业务 model 都被至少一个入口覆盖（除 `Account`/`Session`/`VerificationToken`，由 Auth.js 内部管理）。
+> **覆盖检查**：§3 共 **15 行**（14 个菜单页面 + 单页 + 回收站；另有 `/admin/login` 与 2 条"页面路由之外"的入口），全部有读写入口；每个 `13` 的业务 model 都被至少一个入口覆盖（除 `Account`/`Session`/`VerificationToken`，由 Auth.js 内部管理）。
 
 ---
 
@@ -227,12 +227,13 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 | POST | `/api/articles/[idOrSlug]/view` | 浏览量 +1 | `Article` |
 | GET | `/api/channels/[site]` | 站点栏目树（前台导航用） | `Channel` |
 | GET | `/api/pages/[site]/[slug]` | 单页正文 | `Page` |
+| GET | `/api/pages/[site]?channel=[slug]` | 按栏目 slug 取单页（§5.2；**T1.10 补登**） | `Page` |
 | GET | `/api/navigations/[site]` | 站点导航树 | `Navigation` |
 | GET | `/api/search` | 全站搜索（`contains` 运行时检索） | `Article` |
 | GET | `/api/tags` | 标签聚合（用于输入建议） | `Article` |
 | GET | `/api/comments` | 文章已通过评论（两级） | `Comment` |
 | POST | `/api/comments` | 提交评论（匿名） | `Comment` |
-| POST | `/api/forms/[id]/submit` | 表单提交 | `FormData` |
+| POST | `/api/forms/[id]/submit` | 表单提交 —— **本期不做**（`14` §5.12 / §8 A2；T1.10 标注） | `FormData` |
 | POST | `/api/messages` | 留言提交（含匿名） | `Message` |
 | GET | `/api/files/[...path]` | 媒体/附件读取 | `Media`、`Attachment` |
 | GET | `/api/files/[id]/download` | 附件下载（计数 +1） | `Attachment` |
@@ -675,12 +676,12 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 | data | `data.own_only` | 数据范围：仅本人稿件（`editor`，对应约束 C4） |
 | data | `data.global` | 数据范围：全站（`super_admin`） |
 
-**四个系统角色的权限矩阵**（seed 依据，`13` §6）：
+**四个系统角色的权限矩阵**（seed 依据；**矩阵即在本节**，`13` §6 只说"按角色矩阵生成"、不给可执行集合）：
 
 | 角色 | `data.*` | 关键 `action.*` |
 |---|---|---|
 | `super_admin` | `data.global` | 全部 |
-| `site_admin` | `data.site_scoped` | 本站全部（含 `article.publish`/`withdraw`） |
+| `site_admin` | `data.site_scoped` | 本站全部（含 `article.publish`/`withdraw`）；**排除 `role.manage` / `user.manage`**（依 `16` §2.3；T1.9 起 seed 已对齐 → RolePermission 总数 **105**） |
 | `editor` | `data.own_only` | `article.create`/`update`/`submit`/`delete`、`media.upload`；**无** `audit`/`publish`/`withdraw` |
 | `auditor` | `data.site_scoped` | `article.read`/`audit`/`publish`/`withdraw`、`comment.manage`；**无** `article.create` |
 
@@ -735,7 +736,7 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 
 | 标准（本次指令） | 结论 |
 |---|---|
-| 覆盖所有后台页面的数据入口 | ✅ §3 对照表：14 个后台页面 + 单页 + 回收站 |
+| 覆盖所有后台页面的数据入口 | ✅ §3 对照表：**15 行**（14 个菜单页面 + 单页 + 回收站） |
 | 覆盖指定模块清单 | ✅ users/roles/permissions/sites/pages/navigation/comments/messages/config/versions/recycle/publish/track/tags + articles/channels/media/search/audits/statistics/forms |
 | Server Action vs Route Handler 边界 | ✅ §1：3 条判断规则 + 4 类归口，未逐条列举 |
 | 统一约定（错误码/分页/鉴权/返回） | ✅ §2.1~§2.5 |
@@ -748,5 +749,5 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
-| v1.0 | 2026-10-01 | 首次发布。定义 3 条边界规则、13 个错误码、分页与三层鉴权约定；覆盖 20 个公开端点 + 7 个受保护端点 + 2 个 MetadataRoute；按 16 个领域给出 Server Action 与 Route Handler 契约；补权限码清单（14 menu + 40 action + 3 data）与四个系统角色矩阵 |
+| v1.0 | 2026-10-01 | 首次发布。定义 3 条边界规则、**14 个错误码**、分页与三层鉴权约定；覆盖 **21 个公开端点** + 7 个受保护端点 + 2 个 MetadataRoute；按 16 个领域给出 Server Action 与 Route Handler 契约；补权限码清单（14 menu + **28 action** + 3 data）与四个系统角色矩阵 ｜ 注：原文写「13 个错误码 / 20 个公开端点 / 40 action」，T1.10 按 §2.2、§4.1、§7 实数修正（见 `00` §8 #17/#18/#20） |
 | v1.1 | 2026-10-01 | **§8 的 7 条未决问题全部结案**：A1 tags 保持 JSON 字符串；A2 表单本期只做"schema + 后台查看 + 导出"（不做前台渲染与设计器），并给出细化边界表；A3 热搜词返回空数组 + `degraded`；A4 导出用 `.xlsx`（依赖 `exceljs`/`sheetjs` 待 T1.1 选定）；A5 日志只记 7 类关键操作（补 `Log.type` 收敛表）；A6 附件允许先传后挂；A7 公开接口只接受 site slug、失败返 404 防探测 |
