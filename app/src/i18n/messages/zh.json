@@ -46,7 +46,13 @@
     "enter": "进入",
     "heroLabel": "焦点图",
     "pause": "暂停",
-    "play": "播放"
+    "play": "播放",
+    "quickHall": "办事大厅",
+    "quickMail": "邮箱系统",
+    "quickLibrary": "图书馆",
+    "quickAcademic": "教务系统",
+    "quickCard": "一卡通",
+    "quickMap": "校园地图"
   },
   "news": {
     "title": "新闻中心",

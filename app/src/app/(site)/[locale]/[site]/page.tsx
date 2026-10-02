@@ -50,14 +50,27 @@ const ARTICLE_SELECT = {
  * **没有任何"快捷入口"表或字段**（已核对 seed 的 `seedConfigs()`）。
  * TODO(T2.6 / 第 3~4 周)：改由 `Config(group='site')` 或新的 Server Action 提供，届时删除本常量。
  */
-const MAIN_QUICK_LINKS: QuickLinkItem[] = [
-  { label: "办事大厅", href: "https://example.edu.cn/hall", icon: "landmark" },
-  { label: "邮箱系统", href: "https://mail.example.edu.cn", icon: "mail" },
-  { label: "图书馆", href: "https://example.edu.cn/library", icon: "library" },
-  { label: "教务系统", href: "https://example.edu.cn/jw", icon: "bookopen" },
-  { label: "一卡通", href: "https://example.edu.cn/card", icon: "award" },
-  { label: "校园地图", href: "https://example.edu.cn/map", icon: "building2" },
-];
+/**
+ * 快捷入口文案的 i18n key（T2.8 Part 1 收尾：原先 6 个 `label` 是**中文字面量**，
+ * 英文站会露出中文 —— 现在改为从 `home` 命名空间取，key 在 `mainQuickLinks()` 里消费）
+ */
+type MainQuickLinkKey =
+  "quickHall" | "quickMail" | "quickLibrary" | "quickAcademic" | "quickCard" | "quickMap";
+
+/**
+ * 主站快捷入口（6 个**外链**）—— 地址仍是占位域名，待 `Config` 化；
+ * 文案已走 i18n（`home.quick*`），故英文站显示英文。
+ */
+function mainQuickLinks(t: (key: MainQuickLinkKey) => string): QuickLinkItem[] {
+  return [
+    { label: t("quickHall"), href: "https://example.edu.cn/hall", icon: "landmark" },
+    { label: t("quickMail"), href: "https://mail.example.edu.cn", icon: "mail" },
+    { label: t("quickLibrary"), href: "https://example.edu.cn/library", icon: "library" },
+    { label: t("quickAcademic"), href: "https://example.edu.cn/jw", icon: "bookopen" },
+    { label: t("quickCard"), href: "https://example.edu.cn/card", icon: "award" },
+    { label: t("quickMap"), href: "https://example.edu.cn/map", icon: "building2" },
+  ];
+}
 
 /** 栏目树摊平（顶层 + 一级子栏目），用于按 slug 取中文标签 */
 function flattenChannels(context: SiteContext) {
@@ -160,7 +173,7 @@ export default async function SiteHomePage({
 
       {/* ② 快捷入口（6 项；数据源待第 3~4 周接 Config/Server Action） */}
       <section aria-label={tHome("quickLinks")}>
-        <QuickLinks links={MAIN_QUICK_LINKS} />
+        <QuickLinks links={mainQuickLinks(tHome)} />
       </section>
 
       {/* ③ 学校要闻 */}

@@ -46,7 +46,13 @@
     "enter": "Enter",
     "heroLabel": "Highlights",
     "pause": "Pause",
-    "play": "Play"
+    "play": "Play",
+    "quickHall": "Service Hall",
+    "quickMail": "Webmail",
+    "quickLibrary": "Library",
+    "quickAcademic": "Academic Affairs",
+    "quickCard": "Campus Card",
+    "quickMap": "Campus Map"
   },
   "news": {
     "title": "News",
