@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import { ArticleCard, type ArticleItem } from "@/components/article-card";
@@ -9,7 +10,7 @@ import { SectionTitle } from "@/components/ui/section-title";
  * · 每条：左侧缩略图（`CoverBlock` 渐变兜底）+ 标题 + 日期 + 摘要
  * · 布局：**移动 1 列 / 桌面 3 列**（`lg:grid-cols-3`）
  * · 传 `title` 时自动带一个 `SectionTitle`（含可选 `moreHref`）
- * · 空态：`暂无内容`（文案待 T2.8 迁 i18n）
+ * · 空态：`news.emptyList`（真跑 i18n，不再硬编码）
  */
 
 type NewsListProps = {
@@ -22,7 +23,17 @@ type NewsListProps = {
   className?: string;
 };
 
-export function NewsList({ items, title, subtitle, moreHref, siteSlug, className }: NewsListProps) {
+export async function NewsList({
+  items,
+  title,
+  subtitle,
+  moreHref,
+  siteSlug,
+  className,
+}: NewsListProps) {
+  // Server Component → `getTranslations`
+  const t = await getTranslations("news");
+
   return (
     <section
       className={cn("w-full", className)}
@@ -34,8 +45,7 @@ export function NewsList({ items, title, subtitle, moreHref, siteSlug, className
 
       {items.length === 0 ? (
         <p className="mt-6 rounded-card border border-dashed border-border bg-surface p-card text-center text-sm text-muted-foreground">
-          {/* TODO(T2.8)：迁 i18n */}
-          暂无内容
+          {t("emptyList")}
         </p>
       ) : (
         <ul className={cn("mt-6 grid gap-6", "sm:grid-cols-2 lg:grid-cols-3", title ? "" : "mt-0")}>

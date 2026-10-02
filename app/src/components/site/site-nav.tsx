@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import {
@@ -48,14 +49,22 @@ export function resolveNavHref(
   return { href: url, external };
 }
 
-export function SiteNav({ nav, siteSlug, orientation = "horizontal", className }: SiteNavProps) {
+export async function SiteNav({
+  nav,
+  siteSlug,
+  orientation = "horizontal",
+  className,
+}: SiteNavProps) {
   if (nav.length === 0) {
     return null;
   }
 
+  // Server Component → `getTranslations`（请求级 locale 由 [locale]/layout.tsx 的 setRequestLocale 提供）
+  const t = await getTranslations("nav");
+
   return (
     <NavigationMenu
-      aria-label="主导航"
+      aria-label={t("mainNav")}
       className={cn(orientation === "vertical" && "w-full max-w-none justify-start", className)}
     >
       <NavigationMenuList

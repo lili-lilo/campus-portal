@@ -1,4 +1,5 @@
 import { ArrowRightIcon, Building2Icon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,10 +25,13 @@ type SiteCardsProps = {
   className?: string;
 };
 
-export function SiteCards({ sites, className }: SiteCardsProps) {
+export async function SiteCards({ sites, className }: SiteCardsProps) {
   if (sites.length === 0) {
     return null;
   }
+
+  // Server Component → `getTranslations`
+  const t = await getTranslations("home");
 
   return (
     <ul className={cn("grid grid-cols-2 gap-4 lg:grid-cols-4", className)}>
@@ -53,7 +57,7 @@ export function SiteCards({ sites, className }: SiteCardsProps) {
                   <span />
                 )}
                 <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-                  进入
+                  {t("enter")}
                   <ArrowRightIcon className="size-4" aria-hidden="true" />
                 </span>
               </CardContent>

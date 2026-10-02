@@ -2,6 +2,7 @@
 
 import { PauseIcon, PlayIcon } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { cn } from "cn";
 
@@ -28,7 +29,8 @@ import { Link } from "@/i18n/navigation";
  * · 尺寸：移动 `h-[200px]` / 桌面 `md:h-[400px]`
  *
  * 无障碍：容器 `aria-roledescription="carousel"`；有图时标题叠在**底部渐变遮罩**上（`text-background`），
- * 无图时标题居中于渐变块。⚠ 左右箭头按钮内的 sr-only 文案是 shadcn 内置英文，待 T2.8 统一本地化。
+ * 无图时标题居中于渐变块。⚠ 左右箭头按钮内的 sr-only 文案（"Previous slide"/"Next slide"）是
+ * `ui/carousel.tsx` 内置英文，且该文件属冻结范围 → 本轮**不改**（见 T2.8 Part 1 报告"未覆盖项"）。
  */
 
 export type HeroSlide = {
@@ -47,6 +49,9 @@ type HeroCarouselProps = {
 };
 
 export function HeroCarousel({ items, className }: HeroCarouselProps) {
+  // Client Component → `useTranslations`（messages 由 [locale]/layout.tsx 的 NextIntlClientProvider 下发）
+  const t = useTranslations("home");
+
   const [api, setApi] = useState<CarouselApi>();
   const [playing, setPlaying] = useState(true);
   const [paused, setPaused] = useState(false);
@@ -73,7 +78,7 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
 
   return (
     <section
-      aria-label="焦点图"
+      aria-label={t("heroLabel")}
       aria-roledescription="carousel"
       className={cn("relative", className)}
       onMouseEnter={() => setPaused(true)}
@@ -148,8 +153,7 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
         ) : (
           <PlayIcon className="size-4" aria-hidden="true" />
         )}
-        {/* TODO(T2.8)：迁 i18n */}
-        {playing ? "暂停" : "播放"}
+        {playing ? t("pause") : t("play")}
       </Button>
     </section>
   );

@@ -46,18 +46,19 @@ export async function SiteHeader({ site, nav, locale }: SiteHeaderProps) {
 
   const tCommon = await getTranslations({ locale: current, namespace: "common" });
   const tNav = await getTranslations({ locale: current, namespace: "nav" });
+  const tA11y = await getTranslations({ locale: current, namespace: "accessibility" });
 
   const homeHref = `/${site.slug}`;
   const searchHref = `/${site.slug}/search`;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur">
-      {/* 跳到主内容（键盘/读屏用户）—— TODO(T2.8)：文案迁入 i18n */}
+      {/* 跳到主内容（键盘/读屏用户） */}
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
       >
-        跳到主内容
+        {tA11y("skipToContent")}
       </a>
 
       {/* ① 站点名条 */}
@@ -87,7 +88,7 @@ export async function SiteHeader({ site, nav, locale }: SiteHeaderProps) {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={tNav("home")}
+                  aria-label={tCommon("menu")}
                   className="text-primary-foreground hover:bg-primary-foreground/10 lg:hidden"
                 >
                   <MenuIcon />
@@ -96,13 +97,10 @@ export async function SiteHeader({ site, nav, locale }: SiteHeaderProps) {
               <SheetContent side="right" className="w-[18rem]">
                 <SheetHeader>
                   <SheetTitle>{site.name}</SheetTitle>
-                  <SheetDescription>
-                    {/* TODO(T2.8)：文案迁入 i18n（nav.*） */}
-                    站点导航
-                  </SheetDescription>
+                  <SheetDescription>{tNav("mainNav")}</SheetDescription>
                 </SheetHeader>
 
-                <nav aria-label="移动端导航" className="mt-4 px-3">
+                <nav aria-label={tNav("mainNav")} className="mt-4 px-3">
                   <SiteNav nav={nav} siteSlug={site.slug} orientation="vertical" />
                 </nav>
 

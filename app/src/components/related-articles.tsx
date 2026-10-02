@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import { ArticleCard } from "@/components/article-card";
@@ -31,6 +32,8 @@ export async function RelatedArticles({
   className,
 }: RelatedArticlesProps) {
   const now = new Date();
+  // Server Component → `getTranslations`
+  const t = await getTranslations("news");
 
   const items = await prisma.article.findMany({
     where: {
@@ -64,7 +67,7 @@ export async function RelatedArticles({
         id="related-articles"
         className="font-heading text-xl font-semibold tracking-tight text-foreground"
       >
-        相关阅读
+        {t("related")}
       </h2>
 
       <ul className="grid gap-2 md:grid-cols-2">

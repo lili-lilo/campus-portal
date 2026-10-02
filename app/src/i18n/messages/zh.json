@@ -7,7 +7,12 @@
     "back": "返回",
     "search": "搜索",
     "submit": "提交",
-    "cancel": "取消"
+    "cancel": "取消",
+    "menu": "菜单",
+    "breadcrumb": "面包屑",
+    "prevPage": "上一页",
+    "nextPage": "下一页",
+    "gotoPage": "第 {page} 页"
   },
   "nav": {
     "home": "首页",
@@ -18,40 +23,60 @@
     "faculty": "师资队伍",
     "admissions": "招生就业",
     "research": "科学研究",
-    "disclosure": "信息公开"
+    "disclosure": "信息公开",
+    "mainNav": "主导航"
   },
   "footer": {
     "copyright": "版权所有 © XX大学",
     "address": "XX省XX市XX路 1 号",
     "contact": "联系我们",
-    "sitemap": "站点地图"
+    "sitemap": "站点地图",
+    "phone": "0000-0000000",
+    "email": "contact@example.edu.cn",
+    "icp": "京ICP备00000000号"
   },
   "home": {
     "headline": "XX大学",
     "subheadline": "立德树人 · 服务国家战略与区域发展",
     "latestNews": "学校要闻",
     "notices": "通知公告",
-    "quickLinks": "快捷入口"
+    "quickLinks": "快捷入口",
+    "deptNews": "本院新闻",
+    "deptNotices": "本院公告",
+    "enter": "进入",
+    "heroLabel": "焦点图",
+    "pause": "暂停",
+    "play": "播放"
   },
   "news": {
     "title": "新闻中心",
     "detail": "正文",
     "publishedAt": "发布时间",
     "attachments": "附件",
-    "comments": "评论"
+    "comments": "评论",
+    "emptyList": "暂无文章",
+    "views": "{count} 次浏览",
+    "related": "相关阅读"
   },
   "search": {
     "title": "站内搜索",
     "placeholder": "输入关键词",
     "resultCount": "共 {count} 条结果",
-    "noResult": "没有找到相关内容"
+    "noResult": "没有找到相关内容",
+    "emptyQuery": "请输入关键词",
+    "label": "搜索关键词",
+    "found": "找到 {count} 篇与「{query}」相关的文章",
+    "notFound": "未找到与「{query}」相关的文章",
+    "error": "搜索失败，请稍后重试",
+    "unavailable": "搜索服务暂时不可用，请稍后重试"
   },
   "accessibility": {
     "title": "无障碍设置",
     "fontScale": "字号",
     "contrast": "高对比度",
     "on": "开",
-    "off": "关"
+    "off": "关",
+    "skipToContent": "跳到主内容"
   },
   "admin": {
     "login": "登录",

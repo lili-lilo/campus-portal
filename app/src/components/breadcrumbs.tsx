@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { Link } from "@/i18n/navigation";
 import { cn } from "cn";
 
@@ -20,13 +22,16 @@ type BreadcrumbsProps = {
   className?: string;
 };
 
-export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
+export async function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   if (items.length === 0) {
     return null;
   }
 
+  // Server Component → `getTranslations`（放在早退之后：非 hook）
+  const t = await getTranslations("common");
+
   return (
-    <nav aria-label="面包屑" className={cn("text-sm text-muted-foreground", className)}>
+    <nav aria-label={t("breadcrumb")} className={cn("text-sm text-muted-foreground", className)}>
       <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

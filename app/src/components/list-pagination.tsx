@@ -1,4 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -64,7 +65,7 @@ export function pageWindow(page: number, totalPages: number): (number | "ellipsi
   return items;
 }
 
-export function ListPagination({
+export async function ListPagination({
   page,
   totalPages,
   basePath,
@@ -75,6 +76,9 @@ export function ListPagination({
   if (totalPages <= 1) {
     return null;
   }
+
+  // Server Component → `getTranslations`（放在早退之后：非 hook，无需在顶部）
+  const t = await getTranslations("common");
 
   const prefix = locale === "zh" ? "" : `/${locale}`;
 
@@ -104,14 +108,14 @@ export function ListPagination({
         {/* 上一页 */}
         <PaginationItem>
           {page > 1 ? (
-            <a href={hrefFor(page - 1)} className={arrowClass} aria-label="上一页">
+            <a href={hrefFor(page - 1)} className={arrowClass} aria-label={t("prevPage")}>
               <ChevronLeftIcon data-icon="inline-start" />
-              <span className="hidden sm:block">上一页</span>
+              <span className="hidden sm:block">{t("prevPage")}</span>
             </a>
           ) : (
             <span aria-disabled="true" className={cn(arrowClass, disabledClass)}>
               <ChevronLeftIcon data-icon="inline-start" />
-              <span className="hidden sm:block">上一页</span>
+              <span className="hidden sm:block">{t("prevPage")}</span>
             </span>
           )}
         </PaginationItem>
@@ -134,7 +138,11 @@ export function ListPagination({
                   {item}
                 </a>
               ) : (
-                <a href={hrefFor(item)} className={linkClass} aria-label={`第 ${item} 页`}>
+                <a
+                  href={hrefFor(item)}
+                  className={linkClass}
+                  aria-label={t("gotoPage", { page: item })}
+                >
                   {item}
                 </a>
               )}
@@ -145,13 +153,13 @@ export function ListPagination({
         {/* 下一页 */}
         <PaginationItem>
           {page < totalPages ? (
-            <a href={hrefFor(page + 1)} className={arrowClass} aria-label="下一页">
-              <span className="hidden sm:block">下一页</span>
+            <a href={hrefFor(page + 1)} className={arrowClass} aria-label={t("nextPage")}>
+              <span className="hidden sm:block">{t("nextPage")}</span>
               <ChevronRightIcon data-icon="inline-end" />
             </a>
           ) : (
             <span aria-disabled="true" className={cn(arrowClass, disabledClass)}>
-              <span className="hidden sm:block">下一页</span>
+              <span className="hidden sm:block">{t("nextPage")}</span>
               <ChevronRightIcon data-icon="inline-end" />
             </span>
           )}

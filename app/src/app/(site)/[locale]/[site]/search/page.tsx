@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SearchIcon } from "lucide-react";
 import { headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { articleHref } from "@/components/article-card";
@@ -11,7 +12,17 @@ import { Link } from "@/i18n/navigation";
 import { formatListDate } from "@/lib/date";
 import { getSiteContext } from "@/lib/site-context";
 
-export const metadata: Metadata = { title: "站内搜索" };
+/** 搜索页标题本地化（T2.8 Part 1 收口）：`locale` 由参数提供，可用 next-intl 的类型化重载 */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; site: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "search" });
+
+  return { title: t("title") };
+}
 
 // SSR：docs/15 §6 规定搜索页不做 ISR（revalidate: 0）
 export const revalidate = 0;
@@ -44,7 +55,9 @@ type SearchApiData = {
 async function fetchSearch(
   siteSlug: string,
   query: string,
-  page?: string,
+  page: string | undefined,
+  /** 传入页面已取的 `search` 命名空间翻译器（兜底文案走 i18n） */
+  t: (key: "error" | "unavailable") => string,
 ): Promise<{ data: SearchApiData | null; error: string | null }> {
   const headerList = await headers();
   const host = headerList.get("host") ?? "localhost:3000";
@@ -67,12 +80,12 @@ async function fetchSearch(
 
     if (!payload.ok || !payload.data) {
       // 例如关键词超 50 字 → API 返回 VALIDATION_FAILED 的中文 message，这里直接展示
-      return { data: null, error: payload.message ?? "搜索失败，请稍后重试" };
+      return { data: null, error: payload.message ?? t("error") };
     }
 
     return { data: payload.data, error: null };
   } catch {
-    return { data: null, error: "搜索服务暂时不可用，请稍后重试" };
+    return { data: null, error: t("unavailable") };
   }
 }
 
@@ -88,44 +101,48 @@ export default async function SearchPage({
 
   const query = (rawQuery ?? "").trim();
 
+  // Server Component → `getTranslations`（search 命名空间 + common 的"搜索"按钮文案）
+  const t = await getTranslations("search");
+  const tCommon = await getTranslations("common");
+
   const context = await getSiteContext(siteSlug);
   if (!context) {
     notFound();
   }
 
-  const result = query.length > 0 ? await fetchSearch(siteSlug, query, rawPage) : null;
+  const result = query.length > 0 ? await fetchSearch(siteSlug, query, rawPage, t) : null;
   const data = result?.data ?? null;
 
   return (
     <div className="mx-auto w-full max-w-page space-y-6 px-gutter py-section-sm">
       <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-        站内搜索
+        {t("title")}
       </h1>
 
       {/* ① 输入框：GET 表单（不写 action → 提交到当前 URL，天然带 locale 前缀且会重置 page） */}
       <form method="get" className="flex flex-wrap items-center gap-2">
         <label htmlFor="search-q" className="sr-only">
           搜索关键词
-        </label>
+        </label>{" "}
         <input
           id="search-q"
           name="q"
           type="search"
           defaultValue={query}
           maxLength={50}
-          placeholder="输入关键词"
+          placeholder={t("placeholder")}
           className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground transition-colors duration-200 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <button type="submit" className={buttonVariants({ variant: "default", size: "lg" })}>
           <SearchIcon className="size-4" aria-hidden="true" />
-          搜索
+          {tCommon("search")}
         </button>
       </form>
 
       {/* ② 三种状态：空关键词 / 出错 / 结果 */}
       {query.length === 0 ? (
         <p className="rounded-card border border-dashed border-border bg-surface p-card text-center text-sm text-muted-foreground">
-          请输入关键词
+          {t("emptyQuery")}
         </p>
       ) : result?.error ? (
         <p
@@ -136,12 +153,12 @@ export default async function SearchPage({
         </p>
       ) : !data || data.total === 0 ? (
         <p className="rounded-card border border-dashed border-border bg-surface p-card text-center text-sm text-muted-foreground">
-          未找到与「{query}」相关的文章
+          {t("notFound", { query })}
         </p>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            找到 <strong className="text-foreground">{data.total}</strong> 篇与「{query}」相关的文章
+            {t("found", { count: data.total, query })}
           </p>
 
           <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-card">

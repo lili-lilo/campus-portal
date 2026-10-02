@@ -1,4 +1,5 @@
 import { DownloadIcon, FileTextIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 /**
@@ -41,10 +42,13 @@ type AttachmentListProps = {
   className?: string;
 };
 
-export function AttachmentList({ items, className }: AttachmentListProps) {
+export async function AttachmentList({ items, className }: AttachmentListProps) {
   if (items.length === 0) {
     return null;
   }
+
+  // Server Component → `getTranslations`（放在早退之后：非 hook）
+  const t = await getTranslations("news");
 
   return (
     <section aria-labelledby="article-attachments" className={cn("space-y-3", className)}>
@@ -52,7 +56,7 @@ export function AttachmentList({ items, className }: AttachmentListProps) {
         id="article-attachments"
         className="font-heading text-lg font-semibold tracking-tight text-foreground"
       >
-        附件
+        {t("attachments")}
       </h2>
 
       <ul className="divide-y divide-border overflow-hidden rounded-card border border-border bg-card">

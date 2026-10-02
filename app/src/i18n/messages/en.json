@@ -7,7 +7,12 @@
     "back": "Back",
     "search": "Search",
     "submit": "Submit",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "menu": "Menu",
+    "breadcrumb": "Breadcrumb",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "gotoPage": "Page {page}"
   },
   "nav": {
     "home": "Home",
@@ -18,40 +23,60 @@
     "faculty": "Faculty",
     "admissions": "Admissions",
     "research": "Research",
-    "disclosure": "Disclosure"
+    "disclosure": "Disclosure",
+    "mainNav": "Main navigation"
   },
   "footer": {
     "copyright": "© XX University. All rights reserved.",
     "address": "No. 1, XX Road, XX City",
     "contact": "Contact us",
-    "sitemap": "Sitemap"
+    "sitemap": "Sitemap",
+    "phone": "+86 000 0000 0000",
+    "email": "contact@example.edu.cn",
+    "icp": "Beijing ICP No. 00000000"
   },
   "home": {
     "headline": "XX University",
     "subheadline": "Education, research and service to society",
     "latestNews": "Latest news",
     "notices": "Notices",
-    "quickLinks": "Quick links"
+    "quickLinks": "Quick links",
+    "deptNews": "School news",
+    "deptNotices": "School notices",
+    "enter": "Enter",
+    "heroLabel": "Highlights",
+    "pause": "Pause",
+    "play": "Play"
   },
   "news": {
     "title": "News",
     "detail": "Article",
     "publishedAt": "Published",
     "attachments": "Attachments",
-    "comments": "Comments"
+    "comments": "Comments",
+    "emptyList": "No articles",
+    "views": "{count} views",
+    "related": "Related articles"
   },
   "search": {
     "title": "Search",
     "placeholder": "Enter keywords",
     "resultCount": "{count} results",
-    "noResult": "Nothing found"
+    "noResult": "Nothing found",
+    "emptyQuery": "Please enter keywords",
+    "label": "Search keywords",
+    "found": "{count} articles found for “{query}”",
+    "notFound": "No articles found for “{query}”",
+    "error": "Search failed, please try again later",
+    "unavailable": "Search service is temporarily unavailable, please try again later"
   },
   "accessibility": {
     "title": "Accessibility",
     "fontScale": "Font size",
     "contrast": "High contrast",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "skipToContent": "Skip to main content"
   },
   "admin": {
     "login": "Sign in",

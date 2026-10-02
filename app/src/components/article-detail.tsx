@@ -1,4 +1,5 @@
 import { CalendarDaysIcon, EyeIcon, UserIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { cache } from "react";
 import { cn } from "cn";
 
@@ -118,7 +119,9 @@ type ArticleDetailProps = {
   siteSlug: string;
 };
 
-export function ArticleDetail({ article, siteSlug }: ArticleDetailProps) {
+export async function ArticleDetail({ article, siteSlug }: ArticleDetailProps) {
+  // Server Component → `getTranslations`
+  const t = await getTranslations("news");
   const html = sanitizeHtml(article.content);
 
   return (
@@ -153,7 +156,7 @@ export function ArticleDetail({ article, siteSlug }: ArticleDetailProps) {
 
         <span className="flex items-center gap-1">
           <EyeIcon className="size-4 shrink-0" aria-hidden="true" />
-          {article.viewCount} 次浏览
+          {t("views", { count: article.viewCount })}
         </span>
       </div>
 

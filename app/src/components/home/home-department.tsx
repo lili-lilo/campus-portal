@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { CoverBlock } from "@/components/article-card";
 import { NewsList } from "@/components/home/news-list";
 import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
@@ -48,6 +50,8 @@ type HomeDepartmentProps = {
 
 export async function HomeDepartment({ context }: HomeDepartmentProps) {
   const { site, channels } = context;
+  // Server Component → `getTranslations`
+  const t = await getTranslations("home");
   const now = new Date();
 
   const publishedWhere = {
@@ -90,7 +94,9 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
   });
 
   const newsChannelName = flatChannels.find((item) => item.slug === "news")?.name;
-  const tabs: NoticeTab[] = [{ key: "news", label: newsChannelName ?? "本院动态", items: notices }];
+  const tabs: NoticeTab[] = [
+    { key: "news", label: newsChannelName ?? t("deptNews"), items: notices },
+  ];
 
   return (
     <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">
@@ -112,7 +118,7 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
 
       {/* ② 快捷入口（精简至 3 个） */}
       {quickLinks.length > 0 ? (
-        <section aria-label="快捷入口">
+        <section aria-label={t("quickLinks")}>
           <QuickLinks links={quickLinks} />
         </section>
       ) : null}
@@ -120,14 +126,14 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
       {/* ③ 本院新闻 */}
       <NewsList
         items={news}
-        title="本院新闻"
+        title={t("deptNews")}
         moreHref={`/${site.slug}/news`}
         siteSlug={site.slug}
       />
 
       {/* ④ 本院公告（单 tab） */}
       <section className="space-y-4">
-        <SectionTitle title="本院公告" moreHref={`/${site.slug}/news`} />
+        <SectionTitle title={t("deptNotices")} moreHref={`/${site.slug}/news`} />
         <NoticeTabs tabs={tabs} siteSlug={site.slug} />
       </section>
 

@@ -88,12 +88,12 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <PhoneIcon className="size-4 shrink-0" aria-hidden="true" />
-                {/* TODO(T2.8)：迁 i18n；第 3~4 周改读 Config(group='site') */}
-                <span>0000-0000000</span>
+                {/* 值暂为占位（在 messages 里），第 3~4 周改读 Config(group='site') */}
+                <span>{t("phone")}</span>
               </li>
               <li className="flex items-center gap-2">
                 <MailIcon className="size-4 shrink-0" aria-hidden="true" />
-                <span>contact@example.edu.cn</span>
+                <span>{t("email")}</span>
               </li>
             </ul>
 
@@ -113,10 +113,8 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
       <div className="border-t border-border">
         <div className="mx-auto flex w-full max-w-page flex-col items-start justify-between gap-2 px-gutter py-4 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>{t("copyright")}</p>
-          <p>
-            {/* TODO(T2.8)：备案号为占位常量，上线前替换为真实备案号 */}
-            京ICP备00000000号
-          </p>
+          {/* 备案号为占位值（见 messages 的 footer.icp），上线前必须替换为真实备案号 */}
+          <p>{t("icp")}</p>
         </div>
       </div>
     </footer>

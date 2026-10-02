@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import { ArticleCard, type ArticleItem } from "@/components/article-card";
@@ -88,20 +89,18 @@ type ArticleListProps = {
   /** 站点 slug：用于生成文章详情链接 */
   siteSlug: string;
   className?: string;
-  /** 空态文案（默认"暂无文章"；文案统一迁 i18n 见 T2.8） */
+  /** 空态文案（默认取 i18n `news.emptyList`） */
   emptyText?: string;
 };
 
-export function ArticleList({
-  items,
-  siteSlug,
-  className,
-  emptyText = "暂无文章",
-}: ArticleListProps) {
+export async function ArticleList({ items, siteSlug, className, emptyText }: ArticleListProps) {
+  // Server Component → `getTranslations`；`emptyText` 显式传入时优先
+  const t = await getTranslations("news");
+
   if (items.length === 0) {
     return (
       <p className="rounded-card border border-dashed border-border bg-surface p-card text-center text-sm text-muted-foreground">
-        {emptyText}
+        {emptyText ?? t("emptyList")}
       </p>
     );
   }

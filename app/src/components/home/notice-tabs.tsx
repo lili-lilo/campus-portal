@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarDaysIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "cn";
 
 import { articleHref, type ArticleItem } from "@/components/article-card";
@@ -35,6 +36,8 @@ type NoticeTabsProps = {
 };
 
 export function NoticeTabs({ tabs, siteSlug, className }: NoticeTabsProps) {
+  // Client Component（tabs 交互）→ `useTranslations`
+  const t = useTranslations("common");
   const first = tabs[0]?.key;
   if (!first) {
     return null;
@@ -57,8 +60,7 @@ export function NoticeTabs({ tabs, siteSlug, className }: NoticeTabsProps) {
           <TabsContent key={tab.key} value={tab.key} className="mt-4">
             {items.length === 0 ? (
               <p className="rounded-card border border-dashed border-border bg-surface p-card text-center text-sm text-muted-foreground">
-                {/* TODO(T2.8)：迁 i18n */}
-                暂无内容
+                {t("empty")}
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-card border border-border bg-card">
