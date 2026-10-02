@@ -1,0 +1,63 @@
+{
+  "common": {
+    "siteName": "XX大学",
+    "loading": "加载中…",
+    "empty": "暂无数据",
+    "more": "查看更多",
+    "back": "返回",
+    "search": "搜索",
+    "submit": "提交",
+    "cancel": "取消"
+  },
+  "nav": {
+    "home": "首页",
+    "news": "新闻中心",
+    "notice": "通知公告",
+    "about": "学校概况",
+    "departments": "院系设置",
+    "faculty": "师资队伍",
+    "admissions": "招生就业",
+    "research": "科学研究",
+    "disclosure": "信息公开"
+  },
+  "footer": {
+    "copyright": "版权所有 © XX大学",
+    "address": "XX省XX市XX路 1 号",
+    "contact": "联系我们",
+    "sitemap": "站点地图"
+  },
+  "home": {
+    "headline": "XX大学",
+    "subheadline": "立德树人 · 服务国家战略与区域发展",
+    "latestNews": "学校要闻",
+    "notices": "通知公告",
+    "quickLinks": "快捷入口"
+  },
+  "news": {
+    "title": "新闻中心",
+    "detail": "正文",
+    "publishedAt": "发布时间",
+    "attachments": "附件",
+    "comments": "评论"
+  },
+  "search": {
+    "title": "站内搜索",
+    "placeholder": "输入关键词",
+    "resultCount": "共 {count} 条结果",
+    "noResult": "没有找到相关内容"
+  },
+  "accessibility": {
+    "title": "无障碍设置",
+    "fontScale": "字号",
+    "contrast": "高对比度",
+    "on": "开",
+    "off": "关"
+  },
+  "admin": {
+    "login": "登录",
+    "logout": "退出登录",
+    "username": "用户名",
+    "password": "密码",
+    "dashboard": "仪表盘"
+  }
+}

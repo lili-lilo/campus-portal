@@ -1,0 +1,63 @@
+{
+  "common": {
+    "siteName": "XX University",
+    "loading": "Loading…",
+    "empty": "No data",
+    "more": "View more",
+    "back": "Back",
+    "search": "Search",
+    "submit": "Submit",
+    "cancel": "Cancel"
+  },
+  "nav": {
+    "home": "Home",
+    "news": "News",
+    "notice": "Notices",
+    "about": "About",
+    "departments": "Schools",
+    "faculty": "Faculty",
+    "admissions": "Admissions",
+    "research": "Research",
+    "disclosure": "Disclosure"
+  },
+  "footer": {
+    "copyright": "© XX University. All rights reserved.",
+    "address": "No. 1, XX Road, XX City",
+    "contact": "Contact us",
+    "sitemap": "Sitemap"
+  },
+  "home": {
+    "headline": "XX University",
+    "subheadline": "Education, research and service to society",
+    "latestNews": "Latest news",
+    "notices": "Notices",
+    "quickLinks": "Quick links"
+  },
+  "news": {
+    "title": "News",
+    "detail": "Article",
+    "publishedAt": "Published",
+    "attachments": "Attachments",
+    "comments": "Comments"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Enter keywords",
+    "resultCount": "{count} results",
+    "noResult": "Nothing found"
+  },
+  "accessibility": {
+    "title": "Accessibility",
+    "fontScale": "Font size",
+    "contrast": "High contrast",
+    "on": "On",
+    "off": "Off"
+  },
+  "admin": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "username": "Username",
+    "password": "Password",
+    "dashboard": "Dashboard"
+  }
+}
