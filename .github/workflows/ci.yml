@@ -8,6 +8,11 @@
 # · 不跑 E2E（docs/16 §5：太慢，仅本地演示前跑）
 # · 项目在 app/ 子目录：**所有步骤的 working-directory 都是 app**，
 #   根目录只用于承载 git 钩子（husky），CI 不在根装依赖
+# · ⚠ **必须 generate**：Prisma Client 产物 `app/src/generated/` 被 `app/.gitignore:64`
+#   忽略（T1.1 三重声明的正确做法）→ CI clone 后**只有源码、没有生成物**，
+#   故 `typecheck` / `build` 前必须跑一次 `pnpm prisma generate`。
+#   （2026-10-02 首次 CI 失败的根因即此：TS2307 找不到 `@/generated/prisma/client`
+#     + 4 处隐式 any 的级联。）
 # ============================================================================
 
 name: CI
@@ -51,6 +56,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
+
+      - name: Setup test database
+        # seed-idempotency 用例需要真实 SQLite；测试体内也会 migrate（幂等重复）
+        run: pnpm prisma migrate deploy
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -87,6 +99,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
 
       - name: Build
         run: pnpm build
