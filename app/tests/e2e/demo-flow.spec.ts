@@ -11,6 +11,14 @@ import { expect, test } from "@playwright/test";
  *
  * 前置：`pnpm db:reset && pnpm db:seed`（docs/16 §1.3）+ **已安装 Playwright 浏览器**
  *   （`pnpm exec playwright install chromium`，约 150MB —— 见 docs/00 §8 #56，本沙箱不装）。
+ *
+ * ⚠ **T2.8 Part 2 选择器三坑**（首轮 3 个失败全部源于此，已修）：
+ *   1. `getByRole("alert")` 会同时命中 Next.js 的路由播报器
+ *      `<div role="alert" id="__next-route-announcer__">` → 改用 `p[role="alert"]`
+ *   2. `[aria-roledescription="carousel"]` 会同时命中 HeroCarousel 的 `<section>` 与
+ *      shadcn carousel 内层 `<div role="region">` → 限定 `section[aria-roledescription="carousel"]`
+ *   3. 首页要闻区块里 DOM 最靠前的 `<a>` 是标题右侧的**「更多」**链接（不是文章卡片）
+ *      → 卡片用 `ul li a` 定位，并对"卡片自身 href"做断言
  */
 
 test.describe("后台登录（T1.8 已就绪，真跑）", () => {
@@ -31,7 +39,10 @@ test.describe("后台登录（T1.8 已就绪，真跑）", () => {
     await page.click('button[type="submit"]');
 
     await expect(page).toHaveURL(/error=invalid_credentials/);
-    await expect(page.getByRole("alert")).toContainText("用户名或密码不正确");
+    // ⚠ 不能用 `getByRole("alert")`：Next.js 自带路由播报器
+    //   `<div role="alert" id="__next-route-announcer__">` 会命中第 2 个元素（strict mode violation）
+    //   → 限定为登录表单里的 `<p role="alert">`
+    await expect(page.locator('p[role="alert"]')).toContainText("用户名或密码不正确");
   });
 });
 
@@ -39,28 +50,54 @@ test.describe("演示链路 · 第 1/2/3/9 步（T2.8 Part 1 解除 skip）", ()
   test("第 1 步：首页有轮播卡片", async ({ page }) => {
     await page.goto("/main");
 
-    // T2.2 的 HeroCarousel 容器带 aria-roledescription="carousel"（aria-label 走 i18n home.heroLabel）
-    const carousel = page.locator('[aria-roledescription="carousel"]');
+    // ⚠ 必须限定到 `<section>`：shadcn 的 carousel 内层还有
+    //   `<div data-slot="carousel" role="region" aria-roledescription="carousel">`，
+    //   裸属性选择器会命中 2 个元素（strict mode violation）
+    const carousel = page.locator('section[aria-roledescription="carousel"]');
     await expect(carousel).toBeVisible();
 
     // ≥1 张卡片（每张卡片是一个指向文章/栏目的链接）
     expect(await carousel.locator("a").count()).toBeGreaterThan(0);
 
-    // 要闻区非空（T2.3 组装的 NewsList，section 由 aria-labelledby 定位）
+    // 要闻区非空：只数**文章卡片**的链接（`ul li a`），排除区块标题右侧的「更多」链接
     expect(
-      await page.locator('section[aria-labelledby="home-news-title"] a').count(),
+      await page.locator('section[aria-labelledby="home-news-title"] ul li a').count(),
     ).toBeGreaterThan(0);
   });
 
   test("第 2 步：点新闻进详情页并能看到标题", async ({ page }) => {
     await page.goto("/main");
 
-    const firstNews = page.locator('section[aria-labelledby="home-news-title"] a').first();
-    await firstNews.click();
+    // ⚠ 只点**文章卡片**的链接：该 section 里 DOM 顺序最靠前的 `<a>` 是区块标题右侧的
+    //   「更多 →」（`ui/section-title.tsx`，moreHref=/{site}/news）—— 点它会停在列表页
+    //   （T2.8 Part 2 失败 3 的根因）。卡片在 `ul li` 内（`ArticleCard` 的 `<Link>`）。
+    const card = page.locator('section[aria-labelledby="home-news-title"] ul li a').first();
+    const href = (await card.getAttribute("href")) ?? "";
 
-    // 进入 news/[id]（静态段优先于 [channel]/[id]，U2）并渲染出正文标题
-    await expect(page).toHaveURL(/\/main\/news\/.+/);
-    await expect(page.locator("article h1")).toBeVisible();
+    // 防假通过：href 为空时下面的 `$` 正则能匹配任意 URL
+    expect(href).not.toBe("");
+
+    await card.click();
+
+    // 断言"应用自己给出的 href"确实能落到详情页：链接规则为 `/{site}/{channel}/{slug}`
+    // （`articleHref`，T2.2）。⚠ 该区块是**全站要闻**，首条可能是 notice 等其他栏目，
+    // 故不能写死 `/main/news/`。
+    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await expect(page).toHaveURL(new RegExp(`${escaped}$`));
+
+    // 诊断（T2.8 Part 2 失败分析）：失败时把 `<article>` 数量与页面**全部** `<h1>` 文本打出来
+    //   · h1 有内容但无 article ⇒ 落到了 404/错误页（`not-found.tsx` 自带 h1，见 docs/00 §8 记录）
+    //   · h1 集合为空        ⇒ 页面尚未渲染出来（超时 / 流式未完成）
+    const articleCount = await page.locator("article").count();
+    const headings = await page.locator("h1").allTextContents();
+    expect(
+      articleCount,
+      `详情页应含 <article>；实际 article=${articleCount}，h1=${JSON.stringify(headings)}，URL=${page.url()}`,
+    ).toBeGreaterThan(0);
+
+    // 冷路由：dev 服务器对该详情路由是**首次请求按需编译**（URL 由客户端导航乐观更新，
+    // 正文仍在流式渲染）⇒ 默认 5s 断言超时不够，此处放宽到 15s
+    await expect(page.locator("article h1")).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("article h1")).not.toBeEmpty();
   });
 
@@ -81,8 +118,8 @@ test.describe("演示链路 · 第 1/2/3/9 步（T2.8 Part 1 解除 skip）", ()
     // 子站名（seed 里为"计算机学院"；用"学院"兜底，避免写死具体院名）
     await expect(page.locator("h1")).toContainText("学院");
 
-    // U7 简化模板：子站**没有**全站轮播
-    await expect(page.locator('[aria-roledescription="carousel"]')).toHaveCount(0);
+    // U7 简化模板：子站**没有**全站轮播（同样限定 `<section>`，避免命中 shadcn 内层 div）
+    await expect(page.locator('section[aria-roledescription="carousel"]')).toHaveCount(0);
   });
 });
 
