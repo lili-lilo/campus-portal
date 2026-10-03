@@ -5,7 +5,7 @@ import { A11yToggle } from "@/components/a11y-toggle";
 import { resolveNavHref } from "@/components/site/site-nav";
 import { Link } from "@/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
-import { localizedName } from "@/lib/localized-name";
+import { localizedDescription, localizedName } from "@/lib/localized-name";
 import type { NavNode } from "@/lib/site-context";
 
 /**
@@ -22,7 +22,8 @@ import type { NavNode } from "@/lib/site-context";
  */
 
 type SiteFooterProps = {
-  site: { name: string; slug: string; description: string | null };
+  /* `nameEn` 可选：M5-1b-1 / #58 起由 `getSiteContext` 一并提供 */
+  site: { name: string; nameEn?: string | null; slug: string; description: string | null };
   nav: NavNode[];
   locale: string;
 };
@@ -32,6 +33,9 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
   const t = await getTranslations({ locale: current, namespace: "footer" });
   const tA11y = await getTranslations({ locale: current, namespace: "accessibility" });
 
+  // M5-1b-1 补 / #58：站点名 + 站点简介双语（`Site.nameEn` / `Site.descriptionEn`）
+  const siteDescription = localizedDescription(site, locale);
+
   const quickNav = nav.slice(0, 6);
 
   return (
@@ -40,10 +44,10 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* ① 站点简介 + 地址 */}
           <div className="lg:col-span-2">
-            <p className="text-base font-semibold text-foreground">{site.name}</p>
-            {site.description ? (
+            <p className="text-base font-semibold text-foreground">{localizedName(site, locale)}</p>
+            {siteDescription ? (
               <p className="mt-2 max-w-prose text-sm leading-body text-muted-foreground">
-                {site.description}
+                {siteDescription}
               </p>
             ) : null}
             <p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground">

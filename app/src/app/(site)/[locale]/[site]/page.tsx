@@ -7,11 +7,12 @@ import { HomeDepartment } from "@/components/home/home-department";
 import { NewsList } from "@/components/home/news-list";
 import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
 import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
-import { SiteCards, type SiteCardItem } from "@/components/home/site-cards";
+import { SiteCards } from "@/components/home/site-cards";
 import { SectionTitle } from "@/components/ui/section-title";
 import type { AppLocale } from "@/i18n/routing";
 import { prisma } from "@/lib/prisma";
 import { getSiteContext, type SiteContext } from "@/lib/site-context";
+import { listPublicSites } from "@/lib/sites";
 
 export const metadata: Metadata = { title: "首页" };
 
@@ -138,11 +139,8 @@ export default async function SiteHomePage({
       select: ARTICLE_SELECT,
     }),
     // ⑤ 院系设置：除 main 外的在营站点（实测 3 个：cs / ee / ba）
-    prisma.site.findMany({
-      where: { slug: { not: "main" }, status: true },
-      orderBy: { createdAt: "asc" },
-      select: { slug: true, name: true, description: true },
-    }),
+    //    M5-1b-1 补：改走 `lib/sites.ts` 的单一实现（与 /departments 页共用，含 nameEn/descriptionEn）
+    listPublicSites({ excludeSlug: "main" }),
   ]);
 
   const slides: HeroSlide[] = carouselMedia.map((media) => ({
@@ -164,7 +162,7 @@ export default async function SiteHomePage({
     { key: "research", label: labelOf("research", "科学研究"), items: researchArticles },
   ];
 
-  const sites: SiteCardItem[] = subSites;
+  const sites = subSites;
 
   return (
     <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">

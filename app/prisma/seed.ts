@@ -226,11 +226,49 @@ const SUB_CHANNELS: readonly ChannelSeed[] = [
 ];
 
 /** 文档写「7 个」（实际列出 8 个），此处以列出的 8 个为准并记录 */
-const SITES = [
-  { slug: "main", name: "XX大学", template: "default", description: "XX大学官方网站" },
-  { slug: "cs", name: "计算机学院", template: "department", description: "XX大学计算机学院" },
-  { slug: "ee", name: "电子信息学院", template: "department", description: "XX大学电子信息学院" },
-  { slug: "ba", name: "商学院", template: "department", description: "XX大学商学院" },
+/** 站点定义（4 个演示站点；`nameEn` / `descriptionEn` = M5-1b-1 / docs/00 §8 #58 的英文站文案） */
+type SiteSeed = {
+  slug: string;
+  name: string;
+  nameEn?: string;
+  template: string;
+  description: string;
+  descriptionEn?: string;
+};
+
+const SITES: readonly SiteSeed[] = [
+  {
+    slug: "main",
+    name: "XX大学",
+    nameEn: "XX University",
+    template: "default",
+    description: "XX大学官方网站",
+    descriptionEn: "Official website of XX University",
+  },
+  {
+    slug: "cs",
+    name: "计算机学院",
+    nameEn: "School of Computer Science",
+    template: "department",
+    description: "XX大学计算机学院",
+    descriptionEn: "School of Computer Science, XX University",
+  },
+  {
+    slug: "ee",
+    name: "电子信息学院",
+    nameEn: "School of Electronic Information",
+    template: "department",
+    description: "XX大学电子信息学院",
+    descriptionEn: "School of Electronic Information, XX University",
+  },
+  {
+    slug: "ba",
+    name: "商学院",
+    nameEn: "Business School",
+    template: "department",
+    description: "XX大学商学院",
+    descriptionEn: "Business School, XX University",
+  },
 ] as const;
 
 /** docs/13 §6.1：11 个账号（4 演示 + 7 扩展） */
@@ -473,16 +511,20 @@ async function seedSites(): Promise<{ siteIds: IdMap; siteNames: IdMap }> {
       create: {
         slug: site.slug,
         name: site.name,
+        nameEn: site.nameEn ?? null,
         template: site.template,
         description: site.description,
+        descriptionEn: site.descriptionEn ?? null,
         status: true,
         createdAt: shift(-120),
         updatedAt: shift(-120),
       },
       update: {
         name: site.name,
+        nameEn: site.nameEn ?? null,
         template: site.template,
         description: site.description,
+        descriptionEn: site.descriptionEn ?? null,
         status: true,
         updatedAt: shift(-120 + i),
       },

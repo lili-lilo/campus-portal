@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Link } from "@/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
+import { localizedName } from "@/lib/localized-name";
 import type { NavNode } from "@/lib/site-context";
 
 /**
@@ -34,7 +35,8 @@ import type { NavNode } from "@/lib/site-context";
  */
 
 type SiteHeaderProps = {
-  site: { name: string; slug: string };
+  /* `nameEn` 可选：M5-1b-1 / #58 起由 `getSiteContext` 一并提供，英文站取它 */
+  site: { name: string; nameEn?: string | null; slug: string };
   nav: NavNode[];
   /** `params.locale`（`string`，此处收窄为 `AppLocale`，避免 `as` 断言） */
   locale: string;
@@ -43,6 +45,8 @@ type SiteHeaderProps = {
 export async function SiteHeader({ site, nav, locale }: SiteHeaderProps) {
   const current: AppLocale = locale === "en" ? "en" : "zh";
   const other: AppLocale = current === "zh" ? "en" : "zh";
+  // M5-1b-1 / #58：站点名双语（`Site.nameEn`，空则回退中文 `name`）
+  const siteLabel = localizedName(site, locale);
 
   const tCommon = await getTranslations({ locale: current, namespace: "common" });
   const tNav = await getTranslations({ locale: current, namespace: "nav" });
@@ -68,7 +72,7 @@ export async function SiteHeader({ site, nav, locale }: SiteHeaderProps) {
             href={homeHref}
             className="rounded-lg text-lg font-semibold tracking-tight transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            {site.name}
+            {siteLabel}
           </Link>
 
           <div className="flex items-center gap-1">
@@ -96,7 +100,7 @@ export async function SiteHeader({ site, nav, locale }: SiteHeaderProps) {
               </SheetTrigger>
               <SheetContent side="right" className="w-[18rem]">
                 <SheetHeader>
-                  <SheetTitle>{site.name}</SheetTitle>
+                  <SheetTitle>{siteLabel}</SheetTitle>
                   <SheetDescription>{tNav("mainNav")}</SheetDescription>
                 </SheetHeader>
 

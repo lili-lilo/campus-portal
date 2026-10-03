@@ -52,9 +52,13 @@ export type SiteContext = {
     id: string;
     slug: string;
     name: string;
+    /** 英文名（M5-1b-1 / #58）；渲染走 `localizedName(site, locale)`，空则回退 `name` */
+    nameEn: string | null;
     /** `default`（主站）/ `department`（子站简化模板，U7） */
     template: string;
     description: string | null;
+    /** 英文简介（M5-1b-1 补 / #58）；渲染走 `localizedDescription(site, locale)`，空则回退 `description` */
+    descriptionEn: string | null;
   };
   nav: NavNode[];
   channels: ChannelNode[];
@@ -152,8 +156,10 @@ export const getSiteContext = cache(async (siteSlug: string): Promise<SiteContex
       id: true,
       slug: true,
       name: true,
+      nameEn: true,
       template: true,
       description: true,
+      descriptionEn: true,
       status: true,
     },
   });
@@ -188,8 +194,10 @@ export const getSiteContext = cache(async (siteSlug: string): Promise<SiteContex
       id: site.id,
       slug: site.slug,
       name: site.name,
+      nameEn: site.nameEn,
       template: site.template,
       description: site.description,
+      descriptionEn: site.descriptionEn,
     },
     nav: buildNavTree(navRows),
     channels: buildChannelTree(channelRows),

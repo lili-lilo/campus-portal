@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { SiteCards, type SiteCardItem } from "@/components/home/site-cards";
-import { prisma } from "@/lib/prisma";
+import { SiteCards } from "@/components/home/site-cards";
+import { listPublicSites } from "@/lib/sites";
 
 // ISR：docs/15 §6（静态型页面）revalidate = 3600
 export const revalidate = 3600;
@@ -34,11 +34,9 @@ export default async function DepartmentsPage({ params }: { params: Promise<Page
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "nav" });
 
-  const sites: SiteCardItem[] = await prisma.site.findMany({
-    where: { slug: { not: "main" }, status: true },
-    orderBy: { createdAt: "asc" },
-    select: { slug: true, name: true, description: true },
-  });
+  // M5-1b-1 补：改走 `lib/sites.ts` 的单一实现（原先此处单独手写查询，漏了 `nameEn`
+  // ⇒ `/en/main/departments` 卡片标题仍为中文；现已与首页 subSites 共用同一份 select）
+  const sites = await listPublicSites({ excludeSlug: "main" });
 
   return (
     <div className="mx-auto w-full max-w-page space-y-6 px-gutter py-section-sm">

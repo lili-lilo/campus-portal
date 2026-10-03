@@ -5,7 +5,7 @@ import { NewsList } from "@/components/home/news-list";
 import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
 import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
 import { SectionTitle } from "@/components/ui/section-title";
-import { localizedName } from "@/lib/localized-name";
+import { localizedDescription, localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import type { SiteContext } from "@/lib/site-context";
 
@@ -55,6 +55,10 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
   const t = await getTranslations("home");
   // M5-1 / #58：子站快捷入口 3 项与「本院公告」tab 标签都取自 `Channel`，英文站取 `nameEn`
   const locale = await getLocale();
+  // M5-1b-1 / #58：站点名（`Site.nameEn`）—— banner 标题与 `aria-label` 同用
+  const siteLabel = localizedName(site, locale);
+  // M5-1b-1 补 / #58：站点简介（`Site.descriptionEn`）
+  const siteDescription = localizedDescription(site, locale);
   const now = new Date();
 
   const publishedWhere = {
@@ -108,16 +112,16 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
     <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">
       {/* ① 院系横幅（替代全站轮播） */}
       <section
-        aria-label={site.name}
+        aria-label={siteLabel}
         className="relative h-[200px] overflow-hidden rounded-card md:h-[280px]"
       >
         <CoverBlock title="" cover={banner?.path ?? null} index={0} className="absolute inset-0" />
         <div className="absolute inset-0 flex flex-col justify-center gap-2 bg-foreground/35 p-8">
           <h1 className="font-heading text-2xl font-semibold text-background md:text-4xl">
-            {site.name}
+            {siteLabel}
           </h1>
-          {site.description ? (
-            <p className="max-w-2xl text-sm text-background/90 md:text-base">{site.description}</p>
+          {siteDescription ? (
+            <p className="max-w-2xl text-sm text-background/90 md:text-base">{siteDescription}</p>
           ) : null}
         </div>
       </section>
