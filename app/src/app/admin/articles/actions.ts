@@ -129,6 +129,8 @@ export type ArticleDetail = {
   content: string;
   cover: string;
   status: string;
+  /** 稿件归属人；编辑页用 `createdById === session.user.id` 判 `isOwner`（C4，T4.1b 新增） */
+  createdById: string | null;
 };
 
 /** 写入入参 = 表单六字段（T3.5 裁决 Q1；`siteId` 由 Action 从栏目推导） */
@@ -148,7 +150,7 @@ function fail(code: ArticleErrorCode, message: string, field?: string): Fail {
   return field ? { ok: false, code, message, field } : { ok: false, code, message };
 }
 
-function emptyPage(page: number, pageSize: number): Paginated<ArticleListItem> {
+function emptyPage<T>(page: number, pageSize: number): Paginated<T> {
   return { items: [], page, pageSize, total: 0, totalPages: 1, hasNext: false };
 }
 
@@ -467,6 +469,7 @@ export async function getArticle(input: { id: string }): Promise<Ok<ArticleDetai
       content: article.content,
       cover: article.cover ?? "",
       status: article.status,
+      createdById: article.createdById,
     },
   };
 }
@@ -980,4 +983,187 @@ export async function withdrawArticle(input: {
     comment: input.comment,
     revalidate: true,
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T4.1b 读取：审核待办 / 审核记录（docs/15 §9.1 L430、docs/14 §5.1 L283/L282）
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PendingAuditsInput = {
+  siteId?: string;
+  /** 只取该状态；缺省 = `pending_first` + `pending_final`（非法值按缺省处理） */
+  targetStatus?: string;
+  /** 原始字符串：正整数解析，非法 → 1 */
+  page?: string;
+  pageSize?: string;
+};
+
+/** 待办行 = 列表行 + 归属人（判 `isOwner`）+ 「提交时间」（最新一条 `AuditRecord.createdAt`） */
+export type PendingAuditItem = ArticleListItem & {
+  createdById: string | null;
+  submittedAt: Date | null;
+};
+
+/**
+ * 审核待办（`/admin/audits` 数据源，docs/15 §9.1 L430）。
+ * L1 `requireSession()` + **L2 `menu.audits`**（该菜单是 auditor/site_admin/super_admin 的权限，
+ * `editor` 没有；与 T3.1 侧边栏过滤同源）。数据范围与 `listArticles` 同口径。
+ * 队列顺序 = `updatedAt` 升序（先提交先审）。
+ */
+export async function listPendingAudits(
+  input: PendingAuditsInput = {},
+): Promise<Ok<Paginated<PendingAuditItem>> | Fail> {
+  const scope = await requireSession();
+
+  if (!scope.ok) {
+    return scope.fail;
+  }
+
+  const { session } = scope;
+
+  // L2：审核待办页的菜单权限
+  if (!can(session.role, "menu.audits")) {
+    return fail("FORBIDDEN", "无权访问审核待办。");
+  }
+
+  const page = parsePositiveInt(input.page) ?? 1;
+  const rawPageSize = parsePositiveInt(input.pageSize);
+  const pageSize = rawPageSize === null ? DEFAULT_PAGE_SIZE : Math.min(rawPageSize, MAX_PAGE_SIZE);
+
+  const siteId = scopeSiteIdOf(session, input.siteId);
+  if (!isSuperAdmin(session.role) && !siteId) {
+    return { ok: true, data: emptyPage(page, pageSize) };
+  }
+
+  const statuses: ArticleStatus[] =
+    input.targetStatus && isArticleStatus(input.targetStatus)
+      ? [input.targetStatus]
+      : ["pending_first", "pending_final"];
+
+  const where = {
+    deletedAt: null,
+    status: { in: statuses },
+    ...(siteId ? { siteId } : {}),
+  };
+
+  const [rows, total] = await prisma.$transaction([
+    prisma.article.findMany({
+      where,
+      orderBy: { updatedAt: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        publishTime: true,
+        viewCount: true,
+        updatedAt: true,
+        createdById: true,
+        channel: { select: { name: true } },
+        createdBy: { select: { name: true } },
+        _count: { select: { comments: true } },
+        // 「提交时间」= 最新一条留痕（C1 每次流转都会写，schema.prisma 的关系名为 `audits` L161）
+        audits: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+      },
+    }),
+    prisma.article.count({ where }),
+  ]);
+
+  const items: PendingAuditItem[] = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    status: row.status,
+    channelName: row.channel.name,
+    createdByName: row.createdBy?.name ?? null,
+    publishTime: row.publishTime,
+    viewCount: row.viewCount,
+    updatedAt: row.updatedAt,
+    commentCount: row._count.comments,
+    createdById: row.createdById,
+    submittedAt: row.audits[0]?.createdAt ?? null,
+  }));
+
+  return {
+    ok: true,
+    data: {
+      items,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      hasNext: page * pageSize < total,
+    },
+  };
+}
+
+/** 一条审核留痕（编辑页时间线用；只暴露 UI 需要的字段） */
+export type AuditRecordItem = {
+  id: string;
+  step: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  operatorName: string;
+  role: string;
+  comment: string | null;
+  createdAt: Date;
+};
+
+/**
+ * 某篇文章的审核记录（编辑页时间线）。L1 + **L2 `article.read`** + **C4/L3 `inScope()`**
+ * （与 `getArticle` 同口径：`editor` 仅本人、`auditor`/`site_admin` 限本站），按 `createdAt` 升序。
+ */
+export async function listAuditRecords(input: {
+  articleId: string;
+}): Promise<Ok<AuditRecordItem[]> | Fail> {
+  const scope = await requireSession();
+
+  if (!scope.ok) {
+    return scope.fail;
+  }
+
+  const { session } = scope;
+
+  // L2：读稿件权限
+  if (!can(session.role, "article.read")) {
+    return fail("FORBIDDEN", "无权查看审核记录。");
+  }
+
+  const article = await prisma.article.findFirst({
+    where: { id: input.articleId, deletedAt: null },
+    select: { id: true, siteId: true, createdById: true },
+  });
+  if (!article) {
+    return fail("NOT_FOUND", "文章不存在或已删除。");
+  }
+
+  // C4 / L3：与 `getArticle` 同口径
+  const scopeError = inScope(
+    session.role,
+    session.siteId,
+    { siteId: article.siteId, createdById: article.createdById },
+    session.userId,
+  );
+  if (scopeError) {
+    return fail("FORBIDDEN", "无权查看该文章的审核记录。");
+  }
+
+  const rows = await prisma.auditRecord.findMany({
+    where: { articleId: article.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      step: true,
+      fromStatus: true,
+      toStatus: true,
+      operatorName: true,
+      role: true,
+      comment: true,
+      createdAt: true,
+    },
+  });
+
+  return { ok: true, data: rows };
 }
