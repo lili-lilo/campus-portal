@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-import { RichTextEditor } from "@/components/admin/rich-text-editor";
+import { ArticleForm } from "@/components/admin/article-form";
+import { auth } from "@/lib/auth";
+
+import { getChannelTree } from "../actions";
 
 export const metadata: Metadata = { title: "新建文章" };
 
@@ -8,23 +11,33 @@ export const metadata: Metadata = { title: "新建文章" };
 export const dynamic = "force-dynamic";
 
 /**
- * 新建文章（T3.4：**只挂载富文本编辑器**）
+ * 新建文章（T3.5）—— Server Component 取栏目 → 交给客户端表单
  *
- * 本页**不做**表单、不做提交、不建 Server Action —— 均属 T3.5（docs/16 §4.2 M3 L297）。
- * 编辑器非受控：`initialContent` 只注入一次；`onChange` 只应在客户端表单容器里接
- * （Server Component 不能传函数）。
+ * 只做「保存草稿」（`createArticle`）；提交审核 / 发布属 M4（`docs/16` §4.2 M4 L303）。
+ * `siteId` 由 `getChannelTree` 内部按数据范围收敛（super_admin 传 `undefined` → 多站点栏目，
+ * 表单会附站点名；其余角色锁本站）。
  */
-export default function NewArticlePage() {
+export default async function NewArticlePage() {
+  const session = await auth();
+  const channels = await getChannelTree({ siteId: session?.user.siteId ?? undefined });
+
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight">新建文章</h1>
-        <p className="text-sm text-muted-foreground">
-          富文本编辑器（Tiptap v3）可编辑区（T3.5 将接入表单与提交流程）。
-        </p>
+        <p className="text-sm text-muted-foreground">保存为草稿；提交审核与发布属 M4（审核流）。</p>
       </div>
 
-      <RichTextEditor initialContent="<p>在这里输入正文…</p>" />
+      {channels.ok ? (
+        <ArticleForm mode="create" channelTree={channels.data} />
+      ) : (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {channels.message}
+        </p>
+      )}
     </div>
   );
 }
