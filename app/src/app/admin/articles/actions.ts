@@ -68,6 +68,8 @@ export type ArticleErrorCode =
   | "SLUG_TAKEN"
   | "INVALID_STATE_TRANSITION"
   | "CONFLICT"
+  /** 软删除（回收站中）：对已软删除文章做编辑 / 重复删除（`docs/14` §2.2 L132） */
+  | "SOFT_DELETED"
   | "INTERNAL_ERROR";
 
 export type Ok<T> = { ok: true; data: T };
@@ -428,7 +430,9 @@ export async function getArticle(input: { id: string }): Promise<Ok<ArticleDetai
   const { session } = scope;
 
   const article = await prisma.article.findFirst({
-    where: { id: input.id, deletedAt: null },
+    // M4 批次 2a：**不带** `deletedAt` 条件 —— 软删除的文章要能区分
+    // 「在回收站中」（`SOFT_DELETED`）与「不存在」（`NOT_FOUND`），见 docs/14 §2.2 L132
+    where: { id: input.id },
     select: {
       id: true,
       siteId: true,
@@ -440,11 +444,17 @@ export async function getArticle(input: { id: string }): Promise<Ok<ArticleDetai
       cover: true,
       status: true,
       createdById: true,
+      deletedAt: true,
     },
   });
 
   if (!article) {
     return fail("NOT_FOUND", "文章不存在或已删除。");
+  }
+
+  // 软删除（回收站中）→ `SOFT_DELETED`（docs/16 §2.4 L177）
+  if (article.deletedAt !== null) {
+    return fail("SOFT_DELETED", "该文章在回收站中，请先去回收站恢复。");
   }
 
   // L3 / C4（docs/13 §7.4 L200）：站点范围 + `editor` 仅本人稿件
@@ -595,7 +605,8 @@ async function writeArticle(
   const values = parsed.data;
 
   const article = await prisma.article.findFirst({
-    where: { id: input.id, deletedAt: null },
+    // M4 批次 2a：同 `getArticle` —— 不带 `deletedAt` 条件，以便区分 SOFT_DELETED / NOT_FOUND
+    where: { id: input.id },
     select: {
       id: true,
       siteId: true,
@@ -604,10 +615,16 @@ async function writeArticle(
       content: true,
       status: true,
       createdById: true,
+      deletedAt: true,
     },
   });
   if (!article) {
     return fail("NOT_FOUND", "文章不存在或已删除。");
+  }
+
+  // 软删除（回收站中）→ `SOFT_DELETED`（docs/16 §2.4 L177：对回收站中的文章执行编辑）
+  if (article.deletedAt !== null) {
+    return fail("SOFT_DELETED", "该文章在回收站中，请先去回收站恢复。");
   }
 
   // L3 / C4
@@ -1241,4 +1258,62 @@ export async function listVersions(input: {
   });
 
   return { ok: true, data: rows };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M4 批次 2a：软删除（回收站）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 软删除文章（`docs/14` §3 L196 的 `deleteArticle`；`docs/16` §2.4 第 1 步）。
+ *
+ * · L1 `requireSession()` + **L2 `article.delete`** + **C4/L3 `inScope()`**（与 `updateArticle` 同口径）
+ * · **只置 `deletedAt`、不动 `status`** ⇒ 恢复后状态仍是删除前那个（`docs/16` §2.4 L174），
+ *   前台因 **C5**（`docs/13` §7.4 L201 `deletedAt IS NULL`）立即不可见
+ * · **不写 `AuditRecord`**：C1 只要求"*状态变更*必须留痕"，软删除不改 `status`（用户裁决）
+ * · 已在回收站中 → `SOFT_DELETED`（`docs/14` §2.2 L132）
+ */
+export async function deleteArticle(input: { id: string }): Promise<Ok<{ id: string }> | Fail> {
+  const scope = await requireSession();
+
+  if (!scope.ok) {
+    return scope.fail;
+  }
+
+  const { session } = scope;
+
+  // L2：`editor` 也有 `article.delete`（permissions.ts L41 + L87）⇒ 可删本人稿，C4 在下面收
+  if (!can(session.role, "article.delete")) {
+    return fail("FORBIDDEN", "无权删除文章。");
+  }
+
+  const article = await prisma.article.findFirst({
+    where: { id: input.id },
+    select: { id: true, siteId: true, createdById: true, deletedAt: true },
+  });
+  if (!article) {
+    return fail("NOT_FOUND", "文章不存在或已删除。");
+  }
+
+  // C4 / L3
+  const scopeError = inScope(
+    session.role,
+    session.siteId,
+    { siteId: article.siteId, createdById: article.createdById },
+    session.userId,
+  );
+  if (scopeError) {
+    return fail("FORBIDDEN", "无权删除该文章。");
+  }
+
+  if (article.deletedAt !== null) {
+    return fail("SOFT_DELETED", "该文章已在回收站中。");
+  }
+
+  await prisma.article.update({
+    where: { id: article.id },
+    data: { deletedAt: new Date() },
+  });
+
+  return { ok: true, data: { id: article.id } };
 }
