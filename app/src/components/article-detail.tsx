@@ -4,6 +4,7 @@ import { cache } from "react";
 import { cn } from "cn";
 
 import { AttachmentList, type AttachmentItem } from "@/components/attachment-list";
+import { ArticleComments } from "@/components/article-comments";
 import { CoverBlock, type ArticleItem } from "@/components/article-card";
 import { Link } from "@/i18n/navigation";
 import { formatDetailDate } from "@/lib/date";
@@ -128,61 +129,67 @@ export async function ArticleDetail({ article, siteSlug }: ArticleDetailProps) {
   const html = sanitizeHtml(article.content);
 
   return (
-    <article className="space-y-6">
-      {/* 标题 */}
-      <h1 className="font-heading text-2xl leading-body font-semibold tracking-tight text-foreground md:text-3xl">
-        {article.title}
-      </h1>
+    <>
+      <article className="space-y-6">
+        {/* 标题 */}
+        <h1 className="font-heading text-2xl leading-body font-semibold tracking-tight text-foreground md:text-3xl">
+          {article.title}
+        </h1>
 
-      {/* 元信息：栏目（链接）/ 日期（Asia/Shanghai）/ 作者 / 浏览量 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-        {article.channel ? (
-          <Link
-            href={`/${siteSlug}/${article.channel.slug}`}
-            className="rounded font-medium text-primary transition-colors duration-200 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-          >
-            {localizedName(article.channel, locale)}
-          </Link>
-        ) : null}
+        {/* 元信息：栏目（链接）/ 日期（Asia/Shanghai）/ 作者 / 浏览量 */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+          {article.channel ? (
+            <Link
+              href={`/${siteSlug}/${article.channel.slug}`}
+              className="rounded font-medium text-primary transition-colors duration-200 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {localizedName(article.channel, locale)}
+            </Link>
+          ) : null}
 
-        <span className="flex items-center gap-1">
-          <CalendarDaysIcon className="size-4 shrink-0" aria-hidden="true" />
-          {formatDetailDate(article.publishTime)}
-        </span>
-
-        {article.author ? (
           <span className="flex items-center gap-1">
-            <UserIcon className="size-4 shrink-0" aria-hidden="true" />
-            {article.author}
+            <CalendarDaysIcon className="size-4 shrink-0" aria-hidden="true" />
+            {formatDetailDate(article.publishTime)}
           </span>
+
+          {article.author ? (
+            <span className="flex items-center gap-1">
+              <UserIcon className="size-4 shrink-0" aria-hidden="true" />
+              {article.author}
+            </span>
+          ) : null}
+
+          <span className="flex items-center gap-1">
+            <EyeIcon className="size-4 shrink-0" aria-hidden="true" />
+            {t("views", { count: article.viewCount })}
+          </span>
+        </div>
+
+        {/* 摘要（可选） */}
+        {article.summary ? (
+          <p className="rounded-card border-l-4 border-primary bg-surface p-card text-sm leading-body text-muted-foreground">
+            {article.summary}
+          </p>
         ) : null}
 
-        <span className="flex items-center gap-1">
-          <EyeIcon className="size-4 shrink-0" aria-hidden="true" />
-          {t("views", { count: article.viewCount })}
-        </span>
-      </div>
+        {/* 封面（渐变兜底，见 docs/00 §8 #50） */}
+        <CoverBlock
+          title={article.title}
+          cover={article.cover}
+          index={0}
+          className="aspect-[16/9] w-full rounded-card"
+        />
 
-      {/* 摘要（可选） */}
-      {article.summary ? (
-        <p className="rounded-card border-l-4 border-primary bg-surface p-card text-sm leading-body text-muted-foreground">
-          {article.summary}
-        </p>
-      ) : null}
+        {/* 正文：白名单清洗后渲染 */}
+        <div className={PROSE_CLASS} dangerouslySetInnerHTML={{ __html: html }} />
 
-      {/* 封面（渐变兜底，见 docs/00 §8 #50） */}
-      <CoverBlock
-        title={article.title}
-        cover={article.cover}
-        index={0}
-        className="aspect-[16/9] w-full rounded-card"
-      />
+        {/* 附件（无附件时组件返回 null） */}
+        <AttachmentList items={article.attachments} className="pt-4" />
+      </article>
 
-      {/* 正文：白名单清洗后渲染 */}
-      <div className={PROSE_CLASS} dangerouslySetInnerHTML={{ __html: html }} />
-
-      {/* 附件（无附件时组件返回 null） */}
-      <AttachmentList items={article.attachments} className="pt-4" />
-    </article>
+      {/* 评论区（M5-4b）：**只读**、在 <article> 之外（语义上评论不属于正文），
+          位置落在"正文 + 附件"之后、"相关阅读"（由页面渲染）之前 */}
+      <ArticleComments articleId={article.id} />
+    </>
   );
 }

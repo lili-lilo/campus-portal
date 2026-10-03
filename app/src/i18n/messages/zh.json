@@ -73,6 +73,8 @@
     "publishedAt": "发布时间",
     "attachments": "附件",
     "comments": "评论",
+    "commentsEmpty": "暂无评论",
+    "commentsCount": "共 {count} 条评论",
     "emptyList": "暂无文章",
     "views": "{count} 次浏览",
     "related": "相关阅读"

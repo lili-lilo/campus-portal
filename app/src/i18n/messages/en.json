@@ -73,6 +73,8 @@
     "publishedAt": "Published",
     "attachments": "Attachments",
     "comments": "Comments",
+    "commentsEmpty": "No comments yet",
+    "commentsCount": "{count} comments",
     "emptyList": "No articles",
     "views": "{count} views",
     "related": "Related articles"
