@@ -5,6 +5,7 @@ import { A11yToggle } from "@/components/a11y-toggle";
 import { resolveNavHref } from "@/components/site/site-nav";
 import { Link } from "@/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
+import { localizedName } from "@/lib/localized-name";
 import type { NavNode } from "@/lib/site-context";
 
 /**
@@ -57,6 +58,8 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
             <ul className="mt-3 space-y-2">
               {quickNav.map((node) => {
                 const { href, external } = resolveNavHref(node, site.slug);
+                // M5-1 / #58：页脚快捷导航与主导航同源（`Navigation` 表），同样按 locale 取名
+                const nodeLabel = localizedName(node, locale);
                 return (
                   <li key={node.id}>
                     {external ? (
@@ -66,14 +69,14 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
                         rel="noreferrer"
                         className="rounded-lg text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                       >
-                        {node.name}
+                        {nodeLabel}
                       </a>
                     ) : (
                       <Link
                         href={href}
                         className="rounded-lg text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                       >
-                        {node.name}
+                        {nodeLabel}
                       </Link>
                     )}
                   </li>

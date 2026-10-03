@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { cn } from "cn";
 
 import {
@@ -10,13 +10,15 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { Link } from "@/i18n/navigation";
+import { localizedName } from "@/lib/localized-name";
 import type { NavNode } from "@/lib/site-context";
 
 /**
  * 主导航（T2.1，docs/15 §6.1）
  * ============================================================================
  * · 数据来自 `Navigation` 表（`getSiteContext().nav`，T2.1 不接 Server Action 缓存）
- *   节点标签用**数据库里的 `name`**（导航表驱动，未走 i18n；英文字面待 T2.8 统一）
+ *   节点标签 = **`localizedName(node, locale)`**（M5-1 / `docs/00` §8 #58：英文站取 `nameEn`，
+ *   空则回退中文 `name`）—— T2.1 时是"直接用 DB 的 `name`"，故英文站曾显示中文
  * · 一级项：有子节点 → `NavigationMenuTrigger` + 下拉；无子节点 → 直接链接
  * · 链接有 `channelSlug` 走站内 `/[site]/[channel]`（next-intl `Link` 自动处理语言前缀）；
  *   否则用 `url`（`http(s)` 视为外链，新窗口打开）
@@ -61,6 +63,8 @@ export async function SiteNav({
 
   // Server Component → `getTranslations`（请求级 locale 由 [locale]/layout.tsx 的 setRequestLocale 提供）
   const t = await getTranslations("nav");
+  // M5-1：导航名双语（`docs/00` §8 #58）—— 同一次请求内 `getLocale()` 与 `getTranslations` 同源
+  const locale = await getLocale();
 
   return (
     <NavigationMenu
@@ -72,6 +76,7 @@ export async function SiteNav({
       >
         {nav.map((node) => {
           const { href, external } = resolveNavHref(node, siteSlug);
+          const nodeLabel = localizedName(node, locale);
 
           if (node.children.length === 0) {
             return (
@@ -83,7 +88,7 @@ export async function SiteNav({
                     rel="noreferrer"
                     className={navigationMenuTriggerStyle()}
                   >
-                    {node.name}
+                    {nodeLabel}
                   </a>
                 ) : (
                   // T2.3 修 Bug 2：原先写 `<NavigationMenuLink asChild><Link/></NavigationMenuLink>`，
@@ -95,7 +100,7 @@ export async function SiteNav({
                   // 代价：不再有 radix 的 `data-active`/`aria-current` —— 与 T2.1"当前页高亮留 T2.4"一致。
                   // 详见 `docs/00` §8 #52。
                   <Link href={href} className={navigationMenuTriggerStyle()}>
-                    {node.name}
+                    {nodeLabel}
                   </Link>
                 )}
               </NavigationMenuItem>
@@ -104,7 +109,7 @@ export async function SiteNav({
 
           return (
             <NavigationMenuItem key={node.id}>
-              <NavigationMenuTrigger>{node.name}</NavigationMenuTrigger>
+              <NavigationMenuTrigger>{nodeLabel}</NavigationMenuTrigger>
               <NavigationMenuContent>
                 <ul
                   className={cn(
@@ -114,6 +119,7 @@ export async function SiteNav({
                 >
                   {node.children.map((child) => {
                     const resolved = resolveNavHref(child, siteSlug);
+                    const childLabel = localizedName(child, locale);
                     return (
                       <li key={child.id}>
                         {resolved.external ? (
@@ -123,14 +129,14 @@ export async function SiteNav({
                             rel="noreferrer"
                             className="block rounded-lg px-3 py-2 text-sm text-foreground transition-colors duration-200 hover:bg-surface focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                           >
-                            {child.name}
+                            {childLabel}
                           </a>
                         ) : (
                           <Link
                             href={resolved.href}
                             className="block rounded-lg px-3 py-2 text-sm text-foreground transition-colors duration-200 hover:bg-surface focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                           >
-                            {child.name}
+                            {childLabel}
                           </Link>
                         )}
                       </li>

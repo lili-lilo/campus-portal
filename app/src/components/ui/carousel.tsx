@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "cn";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 
@@ -91,12 +92,16 @@ function Carousel({
     setApi(api);
   }, [api, setApi]);
 
-  // ⚠ 本文件为 shadcn/ui 生成代码，此处经本地修改（T1.2，2026-10-02）：
+  // ⚠ 本文件为 shadcn/ui 生成代码，此处经本地修改：
+  //   【第 1 次 · T1.2，2026-10-02】
   //   1. 移除原有的 `onSelect(api)` 同步调用 —— 它会在 effect 体内触发 setState，
   //      违反 React 19 的 react-hooks/set-state-in-effect 规则（级联渲染）。
   //      该调用本身冗余：embla 的 reInit/select 事件会覆盖同一用途。
   //   2. 补上 `api.off("reInit", onSelect)` —— 原代码注册了该监听却未在 cleanup 取消，
   //      属监听器泄漏。
+  //   【第 2 次 · M5-1，2026-10-04】`carousel-previous` / `carousel-next` 的 `sr-only`
+  //      文案 `Previous slide` / `Next slide` 迁 i18n：`useTranslations("common")`
+  //      的 `previousSlide` / `nextSlide`（`docs/00` §8 #57 第 ② 项）。
   //   若日后用 `shadcn add carousel` 重新生成本文件，上述修改会被覆盖，需重新应用。
   React.useEffect(() => {
     if (!api) return;
@@ -174,6 +179,8 @@ function CarouselPrevious({
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
+  // M5-1 / #57：sr-only 文案迁 i18n（客户端组件 → useTranslations）
+  const t = useTranslations("common");
 
   return (
     <Button
@@ -192,7 +199,7 @@ function CarouselPrevious({
       {...props}
     >
       <ChevronLeftIcon />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only">{t("previousSlide")}</span>
     </Button>
   );
 }
@@ -204,6 +211,8 @@ function CarouselNext({
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { orientation, scrollNext, canScrollNext } = useCarousel();
+  // M5-1 / #57：同上（sr-only 文案迁 i18n）
+  const t = useTranslations("common");
 
   return (
     <Button
@@ -222,7 +231,7 @@ function CarouselNext({
       {...props}
     >
       <ChevronRightIcon />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only">{t("nextSlide")}</span>
     </Button>
   );
 }

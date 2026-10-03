@@ -6,7 +6,8 @@ import type { ChannelRow } from "@/app/admin/channels/actions";
  * · 渲染：`<ul>/<li>` 递归；**非叶子节点**用 `<details>/<summary>` 折叠 —— 与 T2.6 的
  *   `/sitemap` 站点地图同款（`(site)/[locale]/[site]/sitemap/page.tsx` L24 原文：
  *   「交互：`<details>/<summary>` **折叠**，**零 JS、键盘可达**（无 `'use client'`）」）
- * · 只读（T3.7 裁决 Q1）：无操作按钮、无拖拽；字段只显示 name / slug / type / status（Q5）
+ * · 只读（T3.7 裁决 Q1）：无操作按钮、无拖拽；字段显示 name / **nameEn** / slug / type / status
+ *   （`nameEn` 列由 **M5-1 / `docs/00` §8 #58** 追加：前台英文站取它，后台在此可比对是否缺失；空值显示「—」）
  * · `type` 中文映射为**本文件常量**（Q6，与后台"硬编码中文"口径一致）；未知 type 显示原值
  * · 站点名仅在**结果跨站点**时附加（`super_admin` 的 `siteId` 为 null → 会拿到 4 个站点的栏目）
  */
@@ -44,6 +45,7 @@ function ChannelMeta({ node, showSiteName }: { node: ChannelNode; showSiteName: 
   return (
     <span className="inline-flex flex-wrap items-center gap-2 align-middle">
       <span className="font-medium">{node.name}</span>
+      <span className="text-xs text-muted-foreground">英文名（nameEn）：{node.nameEn ?? "—"}</span>
       <code className="rounded bg-muted px-1 py-0.5 text-xs text-muted-foreground">
         {node.slug}
       </code>

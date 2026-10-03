@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import { getSiteContext } from "@/lib/site-context";
 
@@ -108,7 +109,7 @@ export default async function SitemapPage({ params }: { params: Promise<PagePara
               className="overflow-hidden rounded-card border border-border bg-card"
             >
               <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-foreground transition-colors duration-200 hover:bg-surface focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
-                <span>{channel.name}</span>
+                <span>{localizedName(channel, locale)}</span>
                 <span className="text-xs font-normal text-muted-foreground">{items.length}</span>
               </summary>
 

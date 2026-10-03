@@ -24,6 +24,8 @@ import { prisma } from "@/lib/prisma";
 export type NavNode = {
   id: string;
   name: string;
+  /** 英文名（M5-1 / #58）；渲染走 `localizedName(node, locale)`，空则回退 `name` */
+  nameEn: string | null;
   /** 站内栏目 slug；有值时优先于 `url` */
   channelSlug: string | null;
   /** 外链或自定义路径（`channelSlug` 为空时使用） */
@@ -37,6 +39,8 @@ export type NavNode = {
 export type ChannelNode = {
   id: string;
   name: string;
+  /** 英文名（M5-1 / #58）；渲染走 `localizedName(node, locale)` */
+  nameEn: string | null;
   slug: string;
   /** `list` / `page` / `link`（`form` 已在查询层剔除） */
   type: string;
@@ -60,6 +64,7 @@ type NavRow = {
   id: string;
   parentId: string | null;
   name: string;
+  nameEn: string | null;
   url: string | null;
   target: string;
   channel: { slug: string } | null;
@@ -69,6 +74,7 @@ type ChannelRow = {
   id: string;
   parentId: string | null;
   name: string;
+  nameEn: string | null;
   slug: string;
   type: string;
 };
@@ -80,6 +86,7 @@ function buildNavTree(rows: readonly NavRow[]): NavNode[] {
     byId.set(row.id, {
       id: row.id,
       name: row.name,
+      nameEn: row.nameEn,
       channelSlug: row.channel?.slug ?? null,
       url: row.url,
       target: row.target,
@@ -111,6 +118,7 @@ function buildChannelTree(rows: readonly ChannelRow[]): ChannelNode[] {
     byId.set(row.id, {
       id: row.id,
       name: row.name,
+      nameEn: row.nameEn,
       slug: row.slug,
       type: row.type,
       children: [],
@@ -162,6 +170,7 @@ export const getSiteContext = cache(async (siteSlug: string): Promise<SiteContex
         id: true,
         parentId: true,
         name: true,
+        nameEn: true,
         url: true,
         target: true,
         channel: { select: { slug: true } },
@@ -170,7 +179,7 @@ export const getSiteContext = cache(async (siteSlug: string): Promise<SiteContex
     prisma.channel.findMany({
       where: { siteId: site.id, status: true, type: { not: "form" } },
       orderBy: [{ sort: "asc" }, { name: "asc" }],
-      select: { id: true, parentId: true, name: true, slug: true, type: true },
+      select: { id: true, parentId: true, name: true, nameEn: true, slug: true, type: true },
     }),
   ]);
 

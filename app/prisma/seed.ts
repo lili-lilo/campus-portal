@@ -102,6 +102,8 @@ const prisma = new PrismaClient({ adapter });
 type ChannelSeed = {
   slug: string;
   name: string;
+  /** 英文名（M5-1 / docs/00 §8 #58）；前台英文站取它，空则回退 `name` */
+  nameEn?: string;
   type: "list" | "page" | "link" | "form";
   parentSlug?: string;
   description?: string;
@@ -112,35 +114,115 @@ const MAIN_CHANNELS: readonly ChannelSeed[] = [
   {
     slug: "about",
     name: "学校概况",
+    nameEn: "About",
     type: "page",
     description: "学校简介、历史沿革、现任领导与组织机构",
   },
-  { slug: "news", name: "新闻中心", type: "list", description: "学校要闻与综合新闻" },
-  { slug: "notice", name: "通知公告", type: "list", description: "学校通知与公告" },
-  { slug: "departments", name: "院系设置", type: "list", description: "教学与科研机构" },
-  { slug: "faculty", name: "师资队伍", type: "list", description: "师资队伍与人才引进" },
-  { slug: "admissions", name: "招生就业", type: "list", description: "本科、研究生招生与就业服务" },
-  { slug: "research", name: "科学研究", type: "list", description: "科研动态与学术成果" },
-  { slug: "disclosure", name: "信息公开", type: "list", description: "信息公开与年度报告" },
-  { slug: "history", name: "历史沿革", type: "page", parentSlug: "about" },
-  { slug: "leaders", name: "现任领导", type: "page", parentSlug: "about" },
-  { slug: "organization", name: "组织机构", type: "page", parentSlug: "about" },
-  { slug: "contact", name: "联系我们", type: "page", parentSlug: "about" },
+  {
+    slug: "news",
+    name: "新闻中心",
+    nameEn: "News",
+    type: "list",
+    description: "学校要闻与综合新闻",
+  },
+  {
+    slug: "notice",
+    name: "通知公告",
+    nameEn: "Notices",
+    type: "list",
+    description: "学校通知与公告",
+  },
+  {
+    slug: "departments",
+    name: "院系设置",
+    nameEn: "Schools & Departments",
+    type: "list",
+    description: "教学与科研机构",
+  },
+  {
+    slug: "faculty",
+    name: "师资队伍",
+    nameEn: "Faculty",
+    type: "list",
+    description: "师资队伍与人才引进",
+  },
+  {
+    slug: "admissions",
+    name: "招生就业",
+    nameEn: "Admissions & Careers",
+    type: "list",
+    description: "本科、研究生招生与就业服务",
+  },
+  {
+    slug: "research",
+    name: "科学研究",
+    nameEn: "Research",
+    type: "list",
+    description: "科研动态与学术成果",
+  },
+  {
+    slug: "disclosure",
+    name: "信息公开",
+    nameEn: "Disclosure",
+    type: "list",
+    description: "信息公开与年度报告",
+  },
+  { slug: "history", name: "历史沿革", nameEn: "History", type: "page", parentSlug: "about" },
+  { slug: "leaders", name: "现任领导", nameEn: "Leadership", type: "page", parentSlug: "about" },
+  {
+    slug: "organization",
+    name: "组织机构",
+    nameEn: "Organization",
+    type: "page",
+    parentSlug: "about",
+  },
+  { slug: "contact", name: "联系我们", nameEn: "Contact Us", type: "page", parentSlug: "about" },
 ];
 
 const SUB_CHANNELS: readonly ChannelSeed[] = [
   {
     slug: "about",
     name: "学院概况",
+    nameEn: "About the School",
     type: "page",
     description: "学院简介与联系方式",
     template: "department",
   },
-  { slug: "news", name: "新闻动态", type: "list", description: "本院新闻与通知" },
-  { slug: "faculty", name: "师资队伍", type: "list", description: "本院师资与研究方向" },
-  { slug: "programs", name: "专业介绍", type: "list", description: "本科与研究生专业" },
-  { slug: "research", name: "科研成果", type: "list", description: "科研项目与成果" },
-  { slug: "contact", name: "联系方式", type: "page", description: "办公地点与联系电话" },
+  {
+    slug: "news",
+    name: "新闻动态",
+    nameEn: "News",
+    type: "list",
+    description: "本院新闻与通知",
+  },
+  {
+    slug: "faculty",
+    name: "师资队伍",
+    nameEn: "Faculty",
+    type: "list",
+    description: "本院师资与研究方向",
+  },
+  {
+    slug: "programs",
+    name: "专业介绍",
+    nameEn: "Programs",
+    type: "list",
+    description: "本科与研究生专业",
+  },
+  {
+    slug: "research",
+    name: "科研成果",
+    nameEn: "Research",
+    type: "list",
+    description: "科研项目与成果",
+  },
+  {
+    slug: "contact",
+    name: "联系方式",
+    nameEn: "Contact",
+    type: "page",
+    description: "办公地点与联系电话",
+  },
 ];
 
 /** 文档写「7 个」（实际列出 8 个），此处以列出的 8 个为准并记录 */
@@ -432,6 +514,7 @@ async function seedChannels(siteIds: IdMap): Promise<{ channelIds: IdMap; enable
         siteId,
         parentId: parentId ?? null,
         name: def.name,
+        nameEn: def.nameEn ?? null,
         slug: def.slug,
         type: def.type,
         template: def.template ?? null,
@@ -444,6 +527,7 @@ async function seedChannels(siteIds: IdMap): Promise<{ channelIds: IdMap; enable
       update: {
         parentId: parentId ?? null,
         name: def.name,
+        nameEn: def.nameEn ?? null,
         type: def.type,
         template: def.template ?? null,
         description: def.description ?? null,
@@ -479,26 +563,45 @@ async function seedChannels(siteIds: IdMap): Promise<{ channelIds: IdMap; enable
 }
 
 async function seedNavigations(siteIds: IdMap, channelIds: IdMap): Promise<void> {
-  type NavSeed = { name: string; channel?: string; url?: string; icon: string; target?: string };
+  type NavSeed = {
+    name: string;
+    /** 英文名（M5-1 / docs/00 §8 #58） */
+    nameEn?: string;
+    channel?: string;
+    url?: string;
+    icon: string;
+    target?: string;
+  };
   const mainNav: readonly NavSeed[] = [
-    { name: "学校概况", channel: "about", icon: "School" },
-    { name: "新闻中心", channel: "news", icon: "Newspaper" },
-    { name: "通知公告", channel: "notice", icon: "Bell" },
-    { name: "院系设置", channel: "departments", icon: "Building2" },
-    { name: "师资队伍", channel: "faculty", icon: "Users" },
-    { name: "招生就业", channel: "admissions", icon: "GraduationCap" },
-    { name: "科学研究", channel: "research", icon: "FlaskConical" },
-    { name: "信息公开", channel: "disclosure", icon: "FileText" },
+    { name: "学校概况", nameEn: "About", channel: "about", icon: "School" },
+    { name: "新闻中心", nameEn: "News", channel: "news", icon: "Newspaper" },
+    { name: "通知公告", nameEn: "Notices", channel: "notice", icon: "Bell" },
+    {
+      name: "院系设置",
+      nameEn: "Schools & Departments",
+      channel: "departments",
+      icon: "Building2",
+    },
+    { name: "师资队伍", nameEn: "Faculty", channel: "faculty", icon: "Users" },
+    {
+      name: "招生就业",
+      nameEn: "Admissions & Careers",
+      channel: "admissions",
+      icon: "GraduationCap",
+    },
+    { name: "科学研究", nameEn: "Research", channel: "research", icon: "FlaskConical" },
+    { name: "信息公开", nameEn: "Disclosure", channel: "disclosure", icon: "FileText" },
   ];
   const subNav: readonly NavSeed[] = [
-    { name: "学院概况", channel: "about", icon: "School" },
-    { name: "新闻动态", channel: "news", icon: "Newspaper" },
-    { name: "师资队伍", channel: "faculty", icon: "Users" },
-    { name: "专业介绍", channel: "programs", icon: "BookOpen" },
-    { name: "科研成果", channel: "research", icon: "FlaskConical" },
+    { name: "学院概况", nameEn: "About the School", channel: "about", icon: "School" },
+    { name: "新闻动态", nameEn: "News", channel: "news", icon: "Newspaper" },
+    { name: "师资队伍", nameEn: "Faculty", channel: "faculty", icon: "Users" },
+    { name: "专业介绍", nameEn: "Programs", channel: "programs", icon: "BookOpen" },
+    { name: "科研成果", nameEn: "Research", channel: "research", icon: "FlaskConical" },
   ];
   const extraLink: NavSeed = {
     name: "教育部",
+    nameEn: "Ministry of Education",
     url: "http://www.moe.gov.cn",
     icon: "ExternalLink",
     target: "_blank",
@@ -522,6 +625,7 @@ async function seedNavigations(siteIds: IdMap, channelIds: IdMap): Promise<void>
         id,
         siteId,
         name: def.name,
+        nameEn: def.nameEn ?? null,
         channelId,
         url: def.url ?? null,
         target: def.target ?? "_self",
@@ -534,6 +638,7 @@ async function seedNavigations(siteIds: IdMap, channelIds: IdMap): Promise<void>
       update: {
         siteId,
         name: def.name,
+        nameEn: def.nameEn ?? null,
         channelId,
         url: def.url ?? null,
         target: def.target ?? "_self",

@@ -1,10 +1,11 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { CoverBlock } from "@/components/article-card";
 import { NewsList } from "@/components/home/news-list";
 import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
 import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
 import { SectionTitle } from "@/components/ui/section-title";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import type { SiteContext } from "@/lib/site-context";
 
@@ -52,6 +53,8 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
   const { site, channels } = context;
   // Server Component → `getTranslations`
   const t = await getTranslations("home");
+  // M5-1 / #58：子站快捷入口 3 项与「本院公告」tab 标签都取自 `Channel`，英文站取 `nameEn`
+  const locale = await getLocale();
   const now = new Date();
 
   const publishedWhere = {
@@ -90,10 +93,13 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
   // ② 快捷入口（2~3 个）：只保留 seed 里真实存在的栏目，缺失自动省略
   const quickLinks: QuickLinkItem[] = QUICK_CHANNEL_SLUGS.flatMap(({ slug, icon }) => {
     const channel = flatChannels.find((item) => item.slug === slug);
-    return channel ? [{ label: channel.name, href: `/${site.slug}/${channel.slug}`, icon }] : [];
+    return channel
+      ? [{ label: localizedName(channel, locale), href: `/${site.slug}/${channel.slug}`, icon }]
+      : [];
   });
 
-  const newsChannelName = flatChannels.find((item) => item.slug === "news")?.name;
+  const newsChannel = flatChannels.find((item) => item.slug === "news");
+  const newsChannelName = newsChannel ? localizedName(newsChannel, locale) : undefined;
   const tabs: NoticeTab[] = [
     { key: "news", label: newsChannelName ?? t("deptNews"), items: notices },
   ];

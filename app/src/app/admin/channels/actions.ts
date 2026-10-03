@@ -34,6 +34,8 @@ export type ChannelRow = {
   id: string;
   parentId: string | null;
   name: string;
+  /** 英文名（M5-1 / docs/00 §8 #58）；后台只读展示用，空值显示「—」 */
+  nameEn: string | null;
   slug: string;
   /** `list` / `page` / `link` / `form`（schema.prisma L65-L66） */
   type: string;
@@ -83,6 +85,7 @@ export async function listChannels(
       id: true,
       parentId: true,
       name: true,
+      nameEn: true,
       slug: true,
       type: true,
       status: true,
@@ -97,6 +100,7 @@ export async function listChannels(
       id: row.id,
       parentId: row.parentId,
       name: row.name,
+      nameEn: row.nameEn,
       slug: row.slug,
       type: row.type,
       status: row.status,

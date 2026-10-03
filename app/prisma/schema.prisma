@@ -60,6 +60,8 @@ model Channel {
   siteId    String
   parentId  String?
   name      String
+  /// 英文名（M5-1 / docs/00 §8 #58）；空则前台英文站回退 `name`
+  nameEn    String?
   /// 栏目路径段，站点内唯一；禁止使用保留字（A19 黑名单）
   slug      String
   /// list（列表）/ page（单页）/ link（外链）/ form（表单）
@@ -95,6 +97,8 @@ model Navigation {
   siteId    String
   parentId  String?
   name      String
+  /// 英文名（M5-1 / docs/00 §8 #58）；空则前台英文站回退 `name`
+  nameEn    String?
   /// 指向站内栏目；与 url 至少一个非空（应用层校验）
   channelId String?
   /// 外部链接或自定义路径；channelId 为空时使用
