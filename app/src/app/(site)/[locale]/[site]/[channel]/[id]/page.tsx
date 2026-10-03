@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { ArticleDetail, fetchArticleDetail } from "@/components/article-detail";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { RelatedArticles } from "@/components/related-articles";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import { getSiteContext } from "@/lib/site-context";
 
@@ -41,16 +43,19 @@ export async function generateMetadata({
 }
 
 export default async function ChannelArticlePage({ params }: { params: Promise<DetailParams> }) {
-  const { site: siteSlug, channel: channelSlug, id } = await params;
+  const { locale, site: siteSlug, channel: channelSlug, id } = await params;
 
   const context = await getSiteContext(siteSlug);
   if (!context) {
     notFound();
   }
 
+  // M5-1b-2（C 类）：面包屑「首页」与栏目名走 i18n / 双语
+  const t = await getTranslations({ locale, namespace: "nav" });
+
   const channel = await prisma.channel.findFirst({
     where: { siteId: context.site.id, slug: channelSlug, status: true },
-    select: { id: true, name: true, type: true },
+    select: { id: true, name: true, nameEn: true, type: true },
   });
 
   // 栏目不存在 / 已停用 / **非 list 型**（page、link、form 都没有文章详情）→ 404
@@ -72,8 +77,8 @@ export default async function ChannelArticlePage({ params }: { params: Promise<D
       {/* ① 面包屑：首页 / 栏目 / 标题 */}
       <Breadcrumbs
         items={[
-          { label: "首页", href: `/${siteSlug}` },
-          { label: channel.name, href: `/${siteSlug}/${channelSlug}` },
+          { label: t("home"), href: `/${siteSlug}` },
+          { label: localizedName(channel, locale), href: `/${siteSlug}/${channelSlug}` },
           { label: article.title },
         ]}
       />

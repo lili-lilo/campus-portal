@@ -25,7 +25,7 @@ export type PublicPage = {
   content: string;
   updatedAt: Date;
   publishedAt: Date | null;
-  channel: { name: string; slug: string } | null;
+  channel: { name: string; nameEn?: string | null; slug: string } | null;
 };
 
 /**
@@ -47,7 +47,7 @@ export const getPublicPage = cache(
         content: true,
         updatedAt: true,
         publishedAt: true,
-        channel: { select: { name: true, slug: true } },
+        channel: { select: { name: true, nameEn: true, slug: true } },
       },
     }),
 );

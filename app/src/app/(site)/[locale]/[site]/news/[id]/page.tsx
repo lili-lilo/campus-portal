@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { ArticleDetail, fetchArticleDetail } from "@/components/article-detail";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { RelatedArticles } from "@/components/related-articles";
+import { localizedName } from "@/lib/localized-name";
 import { getSiteContext } from "@/lib/site-context";
 
 // ISR：docs/15 §6 规定详情页 revalidate = 300
@@ -36,12 +38,15 @@ export async function generateMetadata({
 }
 
 export default async function NewsDetailPage({ params }: { params: Promise<DetailParams> }) {
-  const { site: siteSlug, id } = await params;
+  const { locale, site: siteSlug, id } = await params;
 
   const context = await getSiteContext(siteSlug);
   if (!context) {
     notFound();
   }
+
+  // M5-1b-2（C 类）：面包屑「首页」与栏目名走 i18n / 双语
+  const t = await getTranslations({ locale, namespace: "nav" });
 
   const article = await fetchArticleDetail({ siteId: context.site.id, idOrSlug: id });
   if (!article) {
@@ -55,8 +60,11 @@ export default async function NewsDetailPage({ params }: { params: Promise<Detai
       {/* ① 面包屑：首页 / 栏目 / 标题 */}
       <Breadcrumbs
         items={[
-          { label: "首页", href: `/${siteSlug}` },
-          { label: article.channel?.name ?? "新闻中心", href: `/${siteSlug}/${channelSlug}` },
+          { label: t("home"), href: `/${siteSlug}` },
+          {
+            label: article.channel ? localizedName(article.channel, locale) : t("news"),
+            href: `/${siteSlug}/${channelSlug}`,
+          },
           { label: article.title },
         ]}
       />

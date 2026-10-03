@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageContent } from "@/components/page-content";
+import { localizedName } from "@/lib/localized-name";
 import { getPublicPage } from "@/lib/pages";
 import { getSiteContext } from "@/lib/site-context";
 
@@ -27,20 +29,22 @@ export async function generateMetadata({
 }: {
   params: Promise<PageParams>;
 }): Promise<Metadata> {
-  const { site: siteSlug } = await params;
+  const { locale, site: siteSlug } = await params;
+  // M5-1b-2（C 类）：兜底标题「学校概况」→ i18n `nav.about`
+  const t = await getTranslations({ locale, namespace: "nav" });
 
   const context = await getSiteContext(siteSlug);
   if (!context) {
-    return { title: "学校概况" };
+    return { title: t("about") };
   }
 
   // 与页面正文共用 `cache()` 包裹的加载器 → 同请求只查一次库
   const page = await getPublicPage({ siteId: context.site.id, slug: PAGE_SLUG });
-  return { title: page?.title ?? "学校概况" };
+  return { title: page?.title ?? t("about") };
 }
 
 export default async function AboutPage({ params }: { params: Promise<PageParams> }) {
-  const { site: siteSlug } = await params;
+  const { locale, site: siteSlug } = await params;
 
   const context = await getSiteContext(siteSlug);
   if (!context) {
@@ -56,7 +60,7 @@ export default async function AboutPage({ params }: { params: Promise<PageParams
     <div className="mx-auto w-full max-w-3xl px-gutter py-section-sm">
       <PageContent
         page={{ title: page.title, content: page.content, updatedAt: page.updatedAt }}
-        channelName={page.channel?.name}
+        channelName={page.channel ? localizedName(page.channel, locale) : null}
       />
     </div>
   );

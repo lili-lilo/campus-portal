@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { ArticleList, fetchChannelArticles } from "@/components/article-list";
 import { ListPagination } from "@/components/list-pagination";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import { getSiteContext } from "@/lib/site-context";
 
-export const metadata: Metadata = { title: "新闻中心" };
+// M5-1b-2（C 类）：静态中文标题 → `generateMetadata` + i18n（`nav.news`，key 已有）
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; site: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "nav" });
+  return { title: t("news") };
+}
 
 // ISR：docs/15 §6 规定 revalidate = 300
 export const revalidate = 300;
@@ -38,7 +49,7 @@ export default async function NewsPage({
 
   const channel = await prisma.channel.findFirst({
     where: { siteId: context.site.id, slug: CHANNEL_SLUG, status: true },
-    select: { id: true, name: true },
+    select: { id: true, name: true, nameEn: true },
   });
   if (!channel) {
     notFound();
@@ -55,7 +66,7 @@ export default async function NewsPage({
       {/* ① 标题：栏目名取自 Channel.name */}
       <div className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          {channel.name}
+          {localizedName(channel, locale)}
         </h1>
         <p className="text-sm text-muted-foreground">共 {total} 篇</p>
       </div>

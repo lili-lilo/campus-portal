@@ -1,11 +1,13 @@
 import { CalendarDaysIcon } from "lucide-react";
 import Image from "next/image";
+import { getLocale } from "next-intl/server";
 import { cn } from "cn";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import { formatListDate } from "@/lib/date";
+import { localizedName } from "@/lib/localized-name";
 
 /**
  * 文章卡片（T2.2）+ 本批次首页组件的**共享类型与封面兜底**
@@ -23,6 +25,10 @@ import { formatListDate } from "@/lib/date";
  *
  * 渐变只用已注册 token（`primary` / `foreground` / `muted-foreground` / `gold` / `gold-text`），
  * **不新造色值**（T1.3 约定）。
+ *
+ * M5-1b-2 / `docs/00` §8 #58：栏目名（meta 行 + `Badge`）走 `localizedName(channel, locale)`，
+ * 故本组件由同步改为 **async Server Component**（三个调用方 `news-list` / `article-list` /
+ * `related-articles` 都是 RSC ✓；客户端 `notice-tabs` 只用 `articleHref`/`ArticleItem`，不渲染本组件 ✓）。
  */
 
 /** 首页/列表页统一的文章条目形状（T2.2 约定） */
@@ -33,7 +39,8 @@ export type ArticleItem = {
   summary?: string | null;
   cover?: string | null;
   publishTime?: Date | null;
-  channel?: { name: string; slug: string } | null;
+  /** 栏目名双语（M5-1b-2 / `docs/00` §8 #58）：渲染走 `localizedName(channel, locale)` */
+  channel?: { name: string; nameEn?: string | null; slug: string } | null;
 };
 
 /** 4 套封面样式：`bg` 是渐变，`text` 是与该渐变对比度达标的前景色 */
@@ -108,7 +115,7 @@ export function articleHref(article: ArticleItem, siteSlug?: string): string | n
   return null;
 }
 
-export function ArticleCard({
+export async function ArticleCard({
   article,
   variant = "default",
   index = 0,
@@ -117,6 +124,9 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const target = href ?? articleHref(article, siteSlug);
   const date = formatListDate(article.publishTime);
+  // M5-1b-2 / #58：栏目名双语（`Channel.nameEn`）—— 本组件是 RSC，直接取请求级 locale
+  const locale = await getLocale();
+  const channelLabel = article.channel ? localizedName(article.channel, locale) : null;
 
   const title = (
     <span className="line-clamp-2 font-medium text-foreground transition-colors duration-200 group-hover:text-primary">
@@ -127,7 +137,7 @@ export function ArticleCard({
     <span className="flex items-center gap-1 text-xs text-muted-foreground">
       <CalendarDaysIcon className="size-3.5" aria-hidden="true" />
       {date}
-      {article.channel ? <span className="ml-1">· {article.channel.name}</span> : null}
+      {channelLabel ? <span className="ml-1">· {channelLabel}</span> : null}
     </span>
   );
 
@@ -167,7 +177,7 @@ export function ArticleCard({
       <CardHeader className="gap-2 pt-6">
         {article.channel ? (
           <Badge variant="secondary" className="w-fit">
-            {article.channel.name}
+            {channelLabel}
           </Badge>
         ) : null}
         <CardTitle className="text-base leading-body">{title}</CardTitle>

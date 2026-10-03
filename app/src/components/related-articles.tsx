@@ -53,7 +53,7 @@ export async function RelatedArticles({
       summary: true,
       cover: true,
       publishTime: true,
-      channel: { select: { name: true, slug: true } },
+      channel: { select: { name: true, nameEn: true, slug: true } },
     },
   });
 

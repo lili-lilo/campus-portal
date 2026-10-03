@@ -8,6 +8,7 @@ import { articleHref } from "@/components/article-card";
 import { ListPagination } from "@/components/list-pagination";
 import { SearchHighlight, type SearchHighlights } from "@/components/search-highlight";
 import { buttonVariants } from "@/components/ui/button";
+import { localizedName } from "@/lib/localized-name";
 import { Link } from "@/i18n/navigation";
 import { formatListDate } from "@/lib/date";
 import { getSiteContext } from "@/lib/site-context";
@@ -34,7 +35,7 @@ type SearchApiHit = {
   slug: string;
   summary: string | null;
   highlights: SearchHighlights;
-  channel: { name: string; slug: string } | null;
+  channel: { name: string; nameEn: string | null; slug: string } | null;
   publishTime: string | null;
 };
 
@@ -203,7 +204,7 @@ export default async function SearchPage({
                         href={`/${siteSlug}/${hit.channel.slug}`}
                         className="hover:text-primary"
                       >
-                        {hit.channel.name}
+                        {localizedName(hit.channel, locale)}
                       </Link>
                     ) : null}
                     <span>

@@ -34,7 +34,7 @@ const ARTICLE_SELECT = {
   summary: true,
   cover: true,
   publishTime: true,
-  channel: { select: { name: true, slug: true } },
+  channel: { select: { name: true, nameEn: true, slug: true } },
 };
 
 /** 子站快捷入口：站内栏目 slug + lucide 图标名（图标名由 `QuickLinks` 静态映射解析） */

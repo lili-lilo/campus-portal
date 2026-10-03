@@ -10,11 +10,26 @@ import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
 import { SiteCards } from "@/components/home/site-cards";
 import { SectionTitle } from "@/components/ui/section-title";
 import type { AppLocale } from "@/i18n/routing";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import { getSiteContext, type SiteContext } from "@/lib/site-context";
 import { listPublicSites } from "@/lib/sites";
 
-export const metadata: Metadata = { title: "首页" };
+// M5-1b-2（C 类）：静态标题「首页」→ `generateMetadata`（主站用**站点名**，双语）
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; site: string }>;
+}): Promise<Metadata> {
+  const { locale, site: siteSlug } = await params;
+  const context = await getSiteContext(siteSlug);
+  if (!context) {
+    const t = await getTranslations({ locale, namespace: "nav" });
+    return { title: t("home") };
+  }
+
+  return { title: localizedName(context.site, locale) };
+}
 
 // ISR：docs/15 §6 规定首页 revalidate = 300（动态按需渲染 + 300s 缓存，见 docs/00 §8 #49）
 export const revalidate = 300;
@@ -41,7 +56,7 @@ const ARTICLE_SELECT = {
   summary: true,
   cover: true,
   publishTime: true,
-  channel: { select: { name: true, slug: true } },
+  channel: { select: { name: true, nameEn: true, slug: true } },
 };
 
 /**
@@ -73,7 +88,7 @@ function mainQuickLinks(t: (key: MainQuickLinkKey) => string): QuickLinkItem[] {
   ];
 }
 
-/** 栏目树摊平（顶层 + 一级子栏目），用于按 slug 取中文标签 */
+/** 栏目树摊平（顶层 + 一级子栏目），用于按 slug 取（双语的）标签 */
 function flattenChannels(context: SiteContext) {
   return [...context.channels, ...context.channels.flatMap((channel) => channel.children)];
 }
@@ -154,8 +169,11 @@ export default async function SiteHomePage({
   }));
 
   const flatChannels = flattenChannels(context);
-  const labelOf = (channelSlug: string, fallback: string) =>
-    flatChannels.find((channel) => channel.slug === channelSlug)?.name ?? fallback;
+  // M5-1b-2 / #58：tab 标签取自 `context.channels`（已含 `nameEn`）⇒ 英文站显示栏目英文名
+  const labelOf = (channelSlug: string, fallback: string) => {
+    const channel = flatChannels.find((item) => item.slug === channelSlug);
+    return channel ? localizedName(channel, locale) : fallback;
+  };
 
   const noticeTabs: NoticeTab[] = [
     { key: "notice", label: labelOf("notice", "通知公告"), items: noticeArticles },

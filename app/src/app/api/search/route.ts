@@ -31,7 +31,7 @@ type SearchHit = {
   slug: string;
   summary: string | null;
   highlights: SearchHighlights;
-  channel: { name: string; slug: string } | null;
+  channel: { name: string; nameEn: string | null; slug: string } | null;
   publishTime: Date | null;
 };
 
@@ -98,7 +98,7 @@ export async function GET(request: Request) {
       summary: true,
       content: true,
       publishTime: true,
-      channel: { select: { name: true, slug: true } },
+      channel: { select: { name: true, nameEn: true, slug: true } },
     },
   });
 

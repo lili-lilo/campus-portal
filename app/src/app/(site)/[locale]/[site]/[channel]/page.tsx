@@ -3,10 +3,29 @@ import { notFound, redirect } from "next/navigation";
 
 import { ArticleList, fetchChannelArticles } from "@/components/article-list";
 import { ListPagination } from "@/components/list-pagination";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import { getSiteContext } from "@/lib/site-context";
 
-export const metadata: Metadata = { title: "栏目" };
+// M5-1b-2（C 类）：原标题是静态中文「栏目」→ 改 `generateMetadata`，用**栏目名**（双语）
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; site: string; channel: string }>;
+}): Promise<Metadata> {
+  const { locale, site: siteSlug, channel: channelSlug } = await params;
+  const context = await getSiteContext(siteSlug);
+  if (!context) {
+    return { title: "栏目" };
+  }
+
+  const channel = await prisma.channel.findFirst({
+    where: { siteId: context.site.id, slug: channelSlug, status: true },
+    select: { name: true, nameEn: true },
+  });
+
+  return { title: channel ? localizedName(channel, locale) : "栏目" };
+}
 
 // ISR：docs/15 §6 规定通用栏目页 revalidate = 300
 export const revalidate = 300;
@@ -46,7 +65,7 @@ export default async function ChannelPage({
 
   const channel = await prisma.channel.findFirst({
     where: { siteId: context.site.id, slug: channelSlug, status: true },
-    select: { id: true, name: true, type: true, url: true },
+    select: { id: true, name: true, nameEn: true, type: true, url: true },
   });
 
   // ── 分支 0：栏目不存在 / 已停用 ──
@@ -72,7 +91,7 @@ export default async function ChannelPage({
     return (
       <div className="mx-auto w-full max-w-page space-y-4 px-gutter py-section-sm">
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          {channel.name}
+          {localizedName(channel, locale)}
         </h1>
         <p className="rounded-card border border-dashed border-border bg-surface p-card text-sm text-muted-foreground">
           单页正文将在 T2.6 接入（`getPage` / `Page` 表，docs/14 §5.2）；当前栏目类型为 `page`。
@@ -92,7 +111,7 @@ export default async function ChannelPage({
     <div className="mx-auto w-full max-w-page space-y-6 px-gutter py-section-sm">
       <div className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-          {channel.name}
+          {localizedName(channel, locale)}
         </h1>
         <p className="text-sm text-muted-foreground">共 {total} 篇</p>
       </div>

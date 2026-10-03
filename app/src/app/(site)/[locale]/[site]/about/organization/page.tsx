@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/page-content";
+import { localizedName } from "@/lib/localized-name";
 import { getPublicPage } from "@/lib/pages";
 import { getSiteContext } from "@/lib/site-context";
 
@@ -34,7 +35,7 @@ export async function generateMetadata({
 }
 
 export default async function AboutOrganizationPage({ params }: { params: Promise<PageParams> }) {
-  const { site: siteSlug } = await params;
+  const { locale, site: siteSlug } = await params;
 
   const context = await getSiteContext(siteSlug);
   if (!context) {
@@ -50,7 +51,7 @@ export default async function AboutOrganizationPage({ params }: { params: Promis
     <div className="mx-auto w-full max-w-3xl px-gutter py-section-sm">
       <PageContent
         page={{ title: page.title, content: page.content, updatedAt: page.updatedAt }}
-        channelName={page.channel?.name}
+        channelName={page.channel ? localizedName(page.channel, locale) : null}
       />
     </div>
   );

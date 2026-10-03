@@ -1,5 +1,5 @@
 import { CalendarDaysIcon, EyeIcon, UserIcon } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { cache } from "react";
 import { cn } from "cn";
 
@@ -7,6 +7,7 @@ import { AttachmentList, type AttachmentItem } from "@/components/attachment-lis
 import { CoverBlock, type ArticleItem } from "@/components/article-card";
 import { Link } from "@/i18n/navigation";
 import { formatDetailDate } from "@/lib/date";
+import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import { sanitizeHtml } from "@/lib/sanitize";
 
@@ -76,7 +77,7 @@ export const fetchArticleDetail = cache(
         publishTime: true,
         siteId: true,
         channelId: true,
-        channel: { select: { name: true, slug: true } },
+        channel: { select: { name: true, nameEn: true, slug: true } },
         attachments: {
           where: { deletedAt: null },
           orderBy: [{ sort: "asc" }, { createdAt: "asc" }],
@@ -122,6 +123,8 @@ type ArticleDetailProps = {
 export async function ArticleDetail({ article, siteSlug }: ArticleDetailProps) {
   // Server Component → `getTranslations`
   const t = await getTranslations("news");
+  // M5-1b-2 / #58：栏目名双语（`Channel.nameEn`）
+  const locale = await getLocale();
   const html = sanitizeHtml(article.content);
 
   return (
@@ -138,7 +141,7 @@ export async function ArticleDetail({ article, siteSlug }: ArticleDetailProps) {
             href={`/${siteSlug}/${article.channel.slug}`}
             className="rounded font-medium text-primary transition-colors duration-200 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            {article.channel.name}
+            {localizedName(article.channel, locale)}
           </Link>
         ) : null}
 
