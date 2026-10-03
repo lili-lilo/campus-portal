@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
@@ -34,6 +34,10 @@ import { articleFormSchema, type ArticleFormValues } from "@/lib/validation/arti
  *   其余 → 表单顶部 `<p role="alert">`（与 `dashboard/page.tsx` 的 `DashboardNotice` 同款样式）
  * · 成功：`router.push("/admin/articles")`（不挂 `<Toaster/>`，本轮不改根布局）
  * · 栏目下拉用**原生 `<select>`**（沿用 T3.3 `article-filter.tsx` 口径，不引 Radix Select）
+ * · slug 自动派生（T3.5 修复）：`article-{yyyyMMddHHmmss}`，**失焦时**派生 + **提交前兜底**派生，
+ *   两处共用 `fillSlugIfEmpty()`；标题为空则跳过。派生一律经 `form.setValue(...)` 写回 RHF state
+ *   （**不碰 DOM**）—— 原实现只在 `onBlur` 里派生，导致"从未聚焦 slug → 直接点保存"这条路径
+ *   派生不触发、被 zod 判成空串
  */
 
 const EMPTY_VALUES: ArticleFormValues = {
@@ -92,6 +96,33 @@ export function ArticleForm({
   /** 栏目跨站点时才在选项后附站点名（super_admin 的 `siteId` 为 null → 会拿到 4 个站点的栏目） */
   const showSiteName = new Set(channelTree.map((option) => option.siteName)).size > 1;
 
+  /**
+   * slug 为空且**标题已填**时派生并**写回 RHF state**（T3.5 修复）
+   *
+   * 背景（用户实测）：原实现只在 slug 的 `onBlur` 里派生 —— 而"填完标题/栏目/正文后直接点保存草稿"
+   * 这条最常见的路径**从不聚焦 slug**，`onBlur` 不触发 ⇒ RHF 里 slug 仍是 `""` ⇒
+   * 红框 + 「请填写 slug」+ 提交被拦（手动敲一下 slug 才通过，因为手动走 `field.onChange`）。
+   * 因此改为：**失焦派生（即时反馈）+ 提交前兜底派生**两处共用本函数。
+   *
+   * · 一律走 `form.setValue(...)`（RHF 官方 API），**不碰 DOM / defaultValue**；
+   *   `shouldDirty: true` 让该字段被标记为已修改（与手填等价）。
+   * · 标题为空则**跳过**（按用户裁决：避免空标题也生成 `article-时间戳`）。
+   * · 用户手填过再清空（失焦时为空）→ 会**重新派生**（条件只看当前值是否为空，不看 dirty）。
+   */
+  function fillSlugIfEmpty({ validate }: { validate: boolean }) {
+    const values = form.getValues();
+    if (values.slug.trim() !== "" || values.title.trim() === "") {
+      return;
+    }
+    form.setValue("slug", deriveSlug(new Date()), { shouldDirty: true, shouldValidate: validate });
+  }
+
+  /** 提交前先兜底派生（同步写回，`handleSubmit` 随后校验用的是新值） */
+  function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+    fillSlugIfEmpty({ validate: false });
+    return form.handleSubmit(onSubmit)(event);
+  }
+
   async function onSubmit(values: ArticleFormValues) {
     setServerError(null);
     setSubmitting(true);
@@ -120,7 +151,7 @@ export function ArticleForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-5">
+      <form onSubmit={handleFormSubmit} noValidate className="space-y-5">
         {serverError ? (
           <p role="alert" className={ALERT_CLASS}>
             {serverError}
@@ -175,17 +206,17 @@ export function ArticleForm({
               <FormControl>
                 <Input
                   {...field}
-                  placeholder="article-20261003163700"
+                  placeholder="留空将自动生成"
                   onBlur={() => {
                     field.onBlur();
-                    if (field.value.trim() === "") {
-                      form.setValue("slug", deriveSlug(new Date()), { shouldValidate: true });
-                    }
+                    // 失焦派生（即时反馈）；提交前还有一次兜底，见 `handleFormSubmit`
+                    fillSlugIfEmpty({ validate: true });
                   }}
                 />
               </FormControl>
               <p className="text-xs text-muted-foreground">
-                留空则在失焦时自动生成 <code>article-时间戳</code>；只能用小写字母、数字与连字符。
+                留空则在失焦或提交时自动生成 <code>article-时间戳</code>（标题为空时不生成）；
+                只能用小写字母、数字与连字符。
               </p>
               <FormMessage />
             </FormItem>
