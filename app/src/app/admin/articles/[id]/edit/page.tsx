@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ArticleForm } from "@/components/admin/article-form";
@@ -6,6 +7,7 @@ import { ArticleWorkflowActions } from "@/components/admin/article-workflow-acti
 import { AuditTimeline } from "@/components/admin/audit-timeline";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { VersionHistory } from "@/components/admin/version-history";
+import { buttonVariants } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { ROLE_CODES, can, type Role } from "@/lib/permissions";
 
@@ -39,7 +41,8 @@ const EDIT_PAGE_PERMISSIONS = ["article.update", "article.audit", "article.withd
  * 编辑文章（T3.5 表单 → T4.1b 加审核操作区与审核记录）
  *
  * · `params` 是 **Promise**（Next 16：官方 `page.md` L13；仓内先例 `news/[id]/page.tsx` L23/L25）
- * · 加载失败（不存在 / 已软删除 / 超出数据范围，含 C4）→ `notFound()`，不泄露存在性
+ * · 加载失败：**`SOFT_DELETED` → 渲染提示 + 「去回收站恢复」链接**（M4 批次 2b，docs/16 §2.4 L177）；
+ *   其余（不存在 / 超出数据范围，含 C4）→ `notFound()`，不泄露存在性
  * · 操作区（提交 / 通过 / 退回 / 发布 / 撤稿）按状态 + 角色渲染，规则由 `lib/state-machine.ts` 提供；
  *   `isOwner` 供 `editor` 的 C4 判断（`createdById === session.user.id`）
  * · 保存草稿仍是边 8；「已发布 → 草稿」时 Action 内会先落版本快照（C3）
@@ -62,6 +65,25 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
   ]);
 
   if (!article.ok) {
+    // M4 批次 2b：软删除（回收站中）→ **渲染提示而不是 404** —— docs/16 §2.4 L177 要求
+    // 「对回收站中的文章执行编辑 → SOFT_DELETED」，页面必须活着才能显示这条契约码
+    if (article.code === "SOFT_DELETED") {
+      return (
+        <div className="space-y-4">
+          <h1 className="text-xl font-semibold tracking-tight">编辑文章</h1>
+          <p role="alert" className={ALERT_CLASS}>
+            {article.message}
+          </p>
+          <Link
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+            href="/admin/recycle"
+          >
+            去回收站恢复
+          </Link>
+        </div>
+      );
+    }
+
     notFound();
   }
 

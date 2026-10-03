@@ -13,8 +13,9 @@ import { ROLE_CODES, can, type Role } from "@/lib/permissions";
  * **不**查 `UserRole → RolePermission → Permission`（那是写操作的第 4 周 `requirePermission`；
  * 菜单可见性用纯函数即可，且可在无 DB 的单测里断言）。
  *
- * 菜单项 = **13 项**：`docs/14` §7 的 14 个 `menu.*` 去掉 `menu.recycle`
- * —— `docs/00` §8 #26：`/admin/recycle` **本期不做、导航不出现**；`menu.recycle` 权限码保留。
+ * 菜单项 = **14 项**：`docs/14` §7 的全部 14 个 `menu.*`
+ * —— T3.1 时按 `docs/00` §8 #26 去掉 `menu.recycle`（当时 13 项）；**M4 批次 2b 重开 #26**，
+ * 加回「回收站」⇒ 恢复为 14 项。
  */
 
 export type AdminMenuItem = {
@@ -25,7 +26,7 @@ export type AdminMenuItem = {
   code: string;
 };
 
-/** 13 项，顺序与 `docs/14` §7 的 `menu.*` 列表一致（去掉 `menu.recycle`） */
+/** 14 项，顺序与 `docs/14` §7 的 `menu.*` 列表一致 */
 export const ADMIN_MENU: readonly AdminMenuItem[] = [
   { href: "/admin/dashboard", label: "仪表盘", code: "menu.dashboard" },
   { href: "/admin/articles", label: "内容管理", code: "menu.articles" },
@@ -39,6 +40,7 @@ export const ADMIN_MENU: readonly AdminMenuItem[] = [
   { href: "/admin/comments", label: "评论管理", code: "menu.comments" },
   { href: "/admin/messages", label: "留言管理", code: "menu.messages" },
   { href: "/admin/statistics", label: "统计分析", code: "menu.statistics" },
+  { href: "/admin/recycle", label: "回收站", code: "menu.recycle" },
   { href: "/admin/settings", label: "系统设置", code: "menu.settings" },
 ];
 

@@ -76,11 +76,19 @@ export const PERMISSION_CODES = [
 
 export type PermissionCode = (typeof PERMISSION_CODES)[number];
 
-/** `editor` 的 11 条（与 T1.5 seed 一致） */
+/**
+ * `editor` 的 **12 条**。
+ *
+ * ⚠ **与 T1.5 seed 的 11 条刻意不一致**（M4 批次 2b 补）：`menu.recycle` 是新增的第 12 条 ——
+ * 「能删除内容的人必须有恢复入口」（`editor` 有 `article.delete`，却看不到回收站菜单，属权限集自相矛盾）。
+ * `permissions.ts` 是**运行时权威**（`can()` 用它），seed 的 `RolePermission` 只是数据快照；
+ * 两者的对齐留到 M5 做"角色权限勾选界面"时（用户裁决）。
+ */
 const EDITOR_PERMISSIONS = [
   "menu.dashboard",
   "menu.articles",
   "menu.media",
+  "menu.recycle",
   "article.read",
   "article.create",
   "article.update",

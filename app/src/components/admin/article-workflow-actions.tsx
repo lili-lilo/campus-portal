@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import {
+  deleteArticle,
   publishArticle,
   reviewArticle,
   submitForReview,
   withdrawArticle,
 } from "@/app/admin/articles/actions";
 import { Button } from "@/components/ui/button";
-import { ROLE_CODES, type Role } from "@/lib/permissions";
+import { ROLE_CODES, can, type Role } from "@/lib/permissions";
 import {
   isArticleStatus,
   rolesForAction,
@@ -27,6 +28,9 @@ import {
  * · 调 Action 时**都带 `fromStatus: status`**，激活服务端 C2 乐观并发校验
  * · 失败 → 顶部 `p[role="alert"]`；成功 → `router.refresh()`（徽标与时间线一起刷新）
  * · 状态 → 按钮（`rejected` 无按钮：用「保存草稿」回 `draft`，边 8）
+ * · **M4 批次 2b 追加「删除」**（软删除进回收站）：`article.delete` + C4（`editor` 仅本人），
+ *   不受状态机约束（任何未软删状态都可删），成功后 `router.push("/admin/articles")`；
+ *   `isDeleted` 为真时不渲染
  */
 
 const ALERT_CLASS =
@@ -45,6 +49,8 @@ type WorkflowItem = {
   variant?: "default" | "outline" | "destructive";
   /** 二次确认文案（「退回」「撤稿」等不可逆感强的操作用） */
   confirm?: string;
+  /** 成功后跳转到该路径（缺省则 `router.refresh()` 就地刷新） */
+  redirectTo?: string;
   run: () => Promise<WorkflowResult>;
 };
 
@@ -53,11 +59,14 @@ export function ArticleWorkflowActions({
   status,
   role,
   isOwner,
+  isDeleted = false,
 }: {
   articleId: string;
   status: string;
   role: string;
   isOwner: boolean;
+  /** 已在回收站中（M4 批次 2b）⇒ 隐藏「删除」，恢复请去 `/admin/recycle` */
+  isDeleted?: boolean;
 }) {
   const router = useRouter();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -131,6 +140,25 @@ export function ArticleWorkflowActions({
 
   // `rejected` 刻意无按钮：唯一出口是「保存草稿」回 draft（边 8，docs/13 §7.3 规则①）
 
+  /**
+   * 「删除」= 软删除进回收站（M4 批次 2b）。
+   * · 权限码是 `article.delete`（**不走状态机**，故不用 `allowed()`）：`editor` 也有该码，
+   *   但受 C4 限制 ⇒ 复用同一套"本人稿件"判断（`role !== "editor" || isOwner`）
+   * · 任何**未软删**的状态都能删（不限于 `draft`）⇒ 作为最后一个 item 塞进 `items`，
+   *   顺便让 `rejected` 这类"无流转按钮"的状态也能渲染出操作区
+   * · 成功后台内跳回列表（列表已自动排除软删除稿件）
+   */
+  if (!isDeleted && can(role, "article.delete") && (role !== "editor" || isOwner)) {
+    items.push({
+      key: "delete",
+      label: "删除",
+      variant: "destructive",
+      confirm: "确认删除？删除后进入回收站，可在回收站恢复。",
+      redirectTo: "/admin/articles",
+      run: () => deleteArticle({ id: articleId }),
+    });
+  }
+
   async function handleClick(item: WorkflowItem) {
     if (item.confirm && !window.confirm(item.confirm)) {
       return;
@@ -144,6 +172,11 @@ export function ArticleWorkflowActions({
 
       if (!result.ok) {
         setError(result.message ?? "操作失败，请重试。");
+        return;
+      }
+
+      if (item.redirectTo) {
+        router.push(item.redirectTo);
         return;
       }
 

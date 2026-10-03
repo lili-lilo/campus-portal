@@ -48,12 +48,15 @@ describe("permissions：docs/16 §2.3 允许矩阵", () => {
     expect(ROLE_CODES).toHaveLength(4);
   });
 
-  it("角色权限条数：super 45 / site_admin 41 / editor 11 / auditor 10", () => {
+  it("角色权限条数：super 45 / site_admin 41 / editor 12 / auditor 10", () => {
     expect(ROLE_PERMISSIONS.super_admin).toHaveLength(45);
     // ⚠ 与 T1.5 seed 的差异：seed 给 site_admin 授了全部 28 个 action（共 43 条），
     //   本文件按 docs/16 §2.3 排除 role.manage / user.manage → 41 条。
     expect(ROLE_PERMISSIONS.site_admin).toHaveLength(41);
-    expect(ROLE_PERMISSIONS.editor).toHaveLength(11);
+    // ⚠ 与 T1.5 seed 的差异（M4 批次 2b 补）：seed 给 editor 写 11 条，
+    //   本文件多一条 `menu.recycle`（能删内容就必须有恢复入口）→ 12 条；
+    //   两者对齐留到 M5 的"角色权限勾选界面"。auditor **不加**（无 article.delete）。
+    expect(ROLE_PERMISSIONS.editor).toHaveLength(12);
     expect(ROLE_PERMISSIONS.auditor).toHaveLength(10);
   });
 
