@@ -104,13 +104,17 @@ test.describe("4 角色越权（T4.1b 解除部分 skip：界面无入口）", (
     await expect(page.locator('[data-slot="article-status"]')).toHaveCount(0);
   });
 
-  test("用例 3：auditor 界面无文章管理入口（菜单按 menu.* 过滤）", async ({ page }) => {
+  test("用例 3：auditor 无新建入口，直接访问 /admin/articles/new → 404", async ({ page }) => {
     await login(page, "auditor");
     await page.goto("/admin/dashboard");
 
-    // auditor 的菜单 = menu.dashboard / menu.audits / menu.comments
+    // ① 菜单层（T3.1）：auditor 的菜单 = menu.dashboard / menu.audits / menu.comments
     await expect(page.locator('a[href="/admin/audits"]')).toBeVisible();
     await expect(page.locator('a[href="/admin/articles"]')).toHaveCount(0);
+
+    // ② 页面层 gate（T4.1c 补）：直接输 URL 也被挡 —— docs/15 §9.1 L423 的权限列 = `article.create`
+    const response = await page.goto("/admin/articles/new");
+    expect(response?.status()).toBe(404);
   });
 
   test("用例 5：editor 在「已发布」稿件上看不到「撤稿」按钮", async ({ page }) => {

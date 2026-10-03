@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArticleFilter } from "@/components/admin/article-filter";
 import { ArticleTable } from "@/components/admin/article-table";
 import { buttonVariants } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
+import { ROLE_CODES, can, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 import { listArticles } from "./actions";
@@ -12,6 +14,11 @@ export const metadata: Metadata = { title: "内容管理" };
 
 // 后台全部 SSR（docs/15 §9.1：数据要实时，且登录后访问、无需 SEO）
 export const dynamic = "force-dynamic";
+
+/** `session.user.role`（`string`）→ `Role`（零 `as` 强转；同 T3.1 `admin-sidebar.tsx` L47） */
+function isRole(value: string): value is Role {
+  return ROLE_CODES.some((code) => code === value);
+}
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
@@ -33,6 +40,11 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 
 export default async function ArticlesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
+
+  // "新建文章"入口按 `article.create` 条件渲染（docs/15 §9.1 L423；T4.1c）
+  const session = await auth();
+  const role = session?.user.role;
+  const canCreate = role !== undefined && isRole(role) && can(role, "article.create");
 
   const filters = {
     channelId: firstValue(sp.channelId),
@@ -103,12 +115,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Sea
           <p className="text-sm text-muted-foreground">共 {total} 篇文章</p>
         </div>
 
-        <Link
-          className={buttonVariants({ variant: "default", size: "sm" })}
-          href="/admin/articles/new"
-        >
-          新建文章
-        </Link>
+        {canCreate ? (
+          <Link
+            className={buttonVariants({ variant: "default", size: "sm" })}
+            href="/admin/articles/new"
+          >
+            新建文章
+          </Link>
+        ) : null}
       </div>
 
       <ArticleFilter status={filters.status} keyword={filters.keyword} />

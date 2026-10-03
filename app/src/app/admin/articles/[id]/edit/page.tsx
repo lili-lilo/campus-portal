@@ -6,6 +6,7 @@ import { ArticleWorkflowActions } from "@/components/admin/article-workflow-acti
 import { AuditTimeline } from "@/components/admin/audit-timeline";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { auth } from "@/lib/auth";
+import { ROLE_CODES, can, type Role } from "@/lib/permissions";
 
 import { getArticle, getChannelTree, listAuditRecords } from "../../actions";
 
@@ -16,6 +17,22 @@ export const dynamic = "force-dynamic";
 
 const ALERT_CLASS =
   "rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive";
+
+/** `session.user.role`（`string`）→ `Role`（零 `as` 强转；同 T3.1 `admin-sidebar.tsx` L47） */
+function isRole(value: string): value is Role {
+  return ROLE_CODES.some((code) => code === value);
+}
+
+/**
+ * 本页可进入的角色 = **在该页上有可执行动作**的角色。
+ *
+ * ⚠ `docs/15` §9.1 L424 的权限列字面只写 `article.update`（+ L3/C4）。但 `auditor` **没有**
+ * `article.update`，而它的 `article.audit` / `article.withdraw` 写入口恰在本页
+ * （`docs/14` §3 L198）；若只看 `article.update`，会把 auditor 挡在门外 ⇒ 边 2/3/6 在 UI 上
+ * 不可达（`/admin/audits` 只列待审稿，撤稿无处可点）。故按"有动作"收敛；**每个动作的真正
+ * 权限仍由各自 Server Action 内的 L2 判定**（T4.1a 已落，`editor` 点「发布」会被 FORBIDDEN）。
+ */
+const EDIT_PAGE_PERMISSIONS = ["article.update", "article.audit", "article.withdraw"] as const;
 
 /**
  * 编辑文章（T3.5 表单 → T4.1b 加审核操作区与审核记录）
@@ -29,6 +46,12 @@ const ALERT_CLASS =
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
+  const role = session?.user.role;
+
+  // 页面 gate（T4.1c）：本页无任何动作的角色 → 404（不泄露存在性）
+  if (!role || !isRole(role) || !EDIT_PAGE_PERMISSIONS.some((code) => can(role, code))) {
+    notFound();
+  }
 
   const [article, channels, audits] = await Promise.all([
     getArticle({ id }),

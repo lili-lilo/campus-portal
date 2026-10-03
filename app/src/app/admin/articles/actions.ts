@@ -488,6 +488,12 @@ export async function createArticle(input: ArticleWriteInput): Promise<Ok<{ id: 
 
   const { session } = scope;
 
+  // L2（T4.1c 补漏）：docs/16 §2.3 矩阵里 `auditor` 的 `article.create` 为 ❌；
+  // T3.5 当时只做 L1 + `inScope`，故 auditor 手输 `/admin/articles/new` 也能提交 —— 此处补齐。
+  if (!can(session.role, "article.create")) {
+    return fail("FORBIDDEN", "无权创建文章。");
+  }
+
   // 保留字先判：回契约码 `SLUG_RESERVED` + `field:"slug"`（docs/14 §2.2 L128；schema 内同名 refine 只负责客户端提示）
   if (isSlugReservedForAdmin(input.slug)) {
     return fail("SLUG_RESERVED", "该 slug 是系统保留字，请换一个。", "slug");
@@ -570,6 +576,13 @@ async function writeArticle(
   }
 
   const { session } = scope;
+
+  // L2（T4.1c 补漏）：`updateArticle` / `saveArticleDraft` 共用本函数 ⇒ 在此一次卡住
+  // `article.update`（docs/16 §2.3：`auditor` 为 ❌）。位置与 `createArticle` 一致
+  // （L1 之后、任何读库之前），保证"绕过页面 gate 也过不了 Action"。
+  if (!can(session.role, "article.update")) {
+    return fail("FORBIDDEN", "无权修改文章。");
+  }
 
   if (isSlugReservedForAdmin(input.slug)) {
     return fail("SLUG_RESERVED", "该 slug 是系统保留字，请换一个。", "slug");
