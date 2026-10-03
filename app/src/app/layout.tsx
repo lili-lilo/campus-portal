@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
+import { cookies } from "next/headers";
 import { getLocale } from "next-intl/server";
 
-import { A11Y_INIT_SCRIPT } from "@/lib/a11y";
+import { A11Y_CONTRAST_KEY, A11Y_FONT_KEY, parseA11yPreferences } from "@/lib/a11y";
 
 import "./globals.css";
 
@@ -35,38 +35,35 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // 根 layout 继续持有 <html>/<body>（U-B 裁决）；[locale] 段只负责 provider 与静态渲染标记。
   const locale = await getLocale();
 
-  // T1.3 · 无障碍偏好的 SSR 默认属性 + 防 FOUC 内联脚本
-  //   · data-a11y-font / data-a11y-contrast 的默认值必须等于 @/lib/a11y 的
-  //     DEFAULT_FONT_SCALE / DEFAULT_CONTRAST（内联脚本的回落值也是它们）
-  //   · 脚本在首次绘制前同步执行，localStorage 有值时会把这两个属性改写成用户档位
-  //     → <html> 需要 suppressHydrationWarning
-  //     （官方依据：next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md）
+  // M5-2a · 无障碍偏好改由 **cookie** 驱动（取代 T1.3/T2.3 的 localStorage + 内联脚本）
+  // ----------------------------------------------------------------------------
+  // ① 读：本层（Server Component）用 `next/headers` 的 `cookies()` 取两个偏好；
+  //    `parseA11yPreferences()` 是**纯函数**（校验白名单 + 非法回落默认值）
+  // ② 写：客户端切换时由 `@/lib/a11y` 的 `set()` 写同一个 cookie（键名见 A11Y_*_KEY）
+  // ③ 渲染：档位**直接写进 `<html>` 的 SSR 属性** ⇒ 首帧即正确（**零闪烁**），
+  //    因此**不再需要"首帧前改写属性"的内联脚本**
   //
-  // ⚠ **T2.3 修 Bug 1**：原写法 `<script dangerouslySetInnerHTML>` 直接渲染在组件里，
-  //   React 19 会警告「Scripts inside React components are never executed when rendering
-  //   on the client」且**客户端渲染分支确实不执行**。改用 `next/script`：
-  //     · 随包文档 `script.md` L75：`beforeInteractive` **必须放在根 layout**（本文件正是）
-  //     · L69/L156：该策略由**服务端注入初始 HTML**、且**永远注入 `<head>`** → 早于 hydration 执行
-  //     · 因此不再需要手写 `<head>` 包裹；`id` 用于去重
-  //   （为什么不用 `<template>`+提取：template 内脚本是惰性的、不会执行，仍需另一个可执行脚本去搬运，
-  //     逻辑自环；见 `docs/00` §8 #51）
+  // 为什么删脚本：旧方案始终会渲染一个 `<script>`，React 19 报
+  //   「Encountered a script tag while rendering React component」（`docs/00` §8 #51）；
+  //   `next/script` + `beforeInteractive` 也没能消除该警告 ⇒ 改用 cookie 根治。
+  //
+  // 已知取舍（M5-2a 裁决）：cookie **不触发 `storage` 事件** ⇒ 跨标签页实时同步不再具备；
+  //   旧 localStorage 值**不迁移**（重新选一次即可）。详见 `@/lib/a11y` 模块头注释。
+  const cookieStore = await cookies();
+  const a11y = parseA11yPreferences({
+    fontScale: cookieStore.get(A11Y_FONT_KEY)?.value,
+    contrast: cookieStore.get(A11Y_CONTRAST_KEY)?.value,
+  });
+
   return (
     <html
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      data-a11y-font="100"
-      data-a11y-contrast="off"
+      data-a11y-font={a11y.font}
+      data-a11y-contrast={a11y.contrast}
       suppressHydrationWarning
     >
-      <body className="flex min-h-full flex-col">
-        {/* 防 FOUC：读 localStorage 并把档位写回 <html>（脚本内容见 @/lib/a11y） */}
-        <Script
-          id="a11y-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: A11Y_INIT_SCRIPT }}
-        />
-        {children}
-      </body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

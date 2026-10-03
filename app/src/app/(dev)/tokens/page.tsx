@@ -1,5 +1,3 @@
-import { A11yToggle } from "@/components/a11y-toggle";
-
 import { FormDemo } from "./form-demo";
 
 /**
@@ -101,7 +99,10 @@ export default function TokensDemoPage() {
       </header>
 
       <div className="mt-8">
-        <A11yToggle />
+        {/* M5-2a：无障碍开关**真实入口在页脚**（`site-footer.tsx` 的 `<details>`，见 docs/11 A36）。
+            本页不再渲染 `A11yToggle` —— 本路由 `/tokens` 在 `[locale]` 之外，
+            没有 `NextIntlClientProvider`，而该组件 M5-2b 起要用 `useTranslations`。
+            字号/高对比度的视觉验证请在 `/main`（或 `/en/main`）页脚展开查看。 */}
       </div>
 
       <section className="mt-12" aria-labelledby="tokens-colors">
