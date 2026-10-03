@@ -22,13 +22,18 @@ import type { VisitTrendPoint } from "@/app/admin/dashboard/actions";
  * recharts 3.8.0 写法约束（docs/12 §6.1 第 3 次记录 L320-L338）：本项目**不使用** `Legend`，
  * 故 L331/L334 的 `align`+`verticalAlign` ↔ `position`+`offset` 陷阱在此不触发。
  *
- * 颜色走 `ChartConfig.color` → `ChartStyle` 注入的 `--color-<key>`（chart.tsx L79-L106），
- * 取值用 `globals.css` 既有的 `--chart-1..3`（L190-L194），**不改 globals.css**。
+ * 颜色走 `ChartConfig.color` → `ChartStyle` 注入的 `--color-<key>`（chart.tsx L79-L106）：
+ *   · `chart.tsx` L95-L96 把该值**原样**拼进 `<style>` 的 `--color-<key>: <value>;`
+ *     ⇒ 只要是合法 CSS 颜色值（hex / oklch / hsl / rgb / var()）都行，封装层不做格式解析。
+ *   · ⚠ **不要用 `globals.css` 的 `--chart-1..3`**：它们是 shadcn 原值且**无彩度**
+ *     （globals.css L190-L192 = `oklch(0.87 0 0)` / `oklch(0.556 0 0)` / `oklch(0.439 0 0)`，
+ *     chroma = 0），三条线只在明度上差一档 → 目视近乎"灰白色、无法区分"。
+ *   · `globals.css` 属 T1.3 冻结区（禁改），故在此**显式写死**三色：蓝 / 绿 / 橙。
  */
 const CHART_CONFIG = {
-  pv: { label: "PV", color: "var(--chart-1)" },
-  uv: { label: "UV", color: "var(--chart-2)" },
-  ip: { label: "IP", color: "var(--chart-3)" },
+  pv: { label: "PV", color: "#1a4f8b" }, // 蓝（docs/08 主色）
+  uv: { label: "UV", color: "#15803d" }, // 绿
+  ip: { label: "IP", color: "#c2410c" }, // 橙
 } satisfies ChartConfig;
 
 export function VisitTrendChart({ data }: { data: readonly VisitTrendPoint[] }) {
