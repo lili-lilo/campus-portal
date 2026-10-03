@@ -1,10 +1,18 @@
 "use server";
 
-import { auth } from "@/lib/auth";
-import { ROLE_CODES, can, inScope, isSuperAdmin, type Role } from "@/lib/permissions";
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  emptyPage,
+  fail,
+  parsePositiveInt,
+  requireSession,
+  type Fail,
+  type Ok,
+  type Paginated,
+} from "@/lib/actions-shared";
+import { can, inScope, isSuperAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-
-import type { ArticleErrorCode, Fail, Ok, Paginated } from "@/app/admin/articles/actions";
 
 /**
  * 回收站 Server Action（M4 批次 2a / `docs/14` §5.14 L556-L565、`docs/16` §2.4）
@@ -29,66 +37,9 @@ export type RecycleItem = {
   createdByName: string | null;
 };
 
-type SessionContext = {
-  userId: string;
-  userLabel: string;
-  role: Role;
-  siteId: string | null;
-};
-
-type SessionResult = { ok: true; session: SessionContext } | { ok: false; fail: Fail };
-
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
-
-function fail(code: ArticleErrorCode, message: string): Fail {
-  return { ok: false, code, message };
-}
-
-/** `session.user.role`（`string`）→ `Role`（零 `as` 强转） */
-function isRole(value: string): value is Role {
-  return ROLE_CODES.some((code) => code === value);
-}
-
-/** L1：会话 + 角色收窄（与 `articles/actions.ts` L238-L259 同款） */
-async function requireSession(): Promise<SessionResult> {
-  const session = await auth();
-
-  if (!session) {
-    return { ok: false, fail: fail("UNAUTHORIZED", "会话已过期，请重新登录。") };
-  }
-
-  if (!isRole(session.user.role)) {
-    return { ok: false, fail: fail("FORBIDDEN", "当前账号角色不可用，请联系管理员。") };
-  }
-
-  return {
-    ok: true,
-    session: {
-      userId: session.user.id,
-      userLabel: session.user.name ?? session.user.id,
-      role: session.user.role,
-      siteId: session.user.siteId ?? null,
-    },
-  };
-}
-
-/** 仅接受正整数字符串；`0` / `-1` / `1.5` / `abc` / 空串 → `null`（同 `articles/actions.ts` L167-L177） */
-function parsePositiveInt(value: string | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!/^[1-9]\d*$/.test(trimmed)) {
-    return null;
-  }
-  const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) ? parsed : null;
-}
-
-function emptyPage<T>(page: number, pageSize: number): Paginated<T> {
-  return { items: [], page, pageSize, total: 0, totalPages: 1, hasNext: false };
-}
+// `SessionContext` / `SessionResult` / `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` / `fail` /
+// `isRole` / `requireSession` / `parsePositiveInt` / `emptyPage` 已上移到 `@/lib/actions-shared`
+// （T3.6a：本文件 + `articles/actions.ts` + 上传 Route Handler 三处共用）
 
 /** 只接受 `"article"`；将来扩展实体时改这里（入参来自 URL，故按 `unknown` 收） */
 function normalizeEntity(value: unknown): RecycleEntity | null {
@@ -132,9 +83,16 @@ export async function listRecycleBin(
     return fail("VALIDATION_FAILED", "本版本回收站只支持 article。");
   }
 
-  const page = parsePositiveInt(input.page) ?? 1;
-  const rawPageSize = parsePositiveInt(input.pageSize);
-  const pageSize = rawPageSize === null ? DEFAULT_PAGE_SIZE : Math.min(rawPageSize, MAX_PAGE_SIZE);
+  const page = parsePositiveInt(input.page, {
+    min: 1,
+    max: Number.MAX_SAFE_INTEGER,
+    fallback: 1,
+  });
+  const pageSize = parsePositiveInt(input.pageSize, {
+    min: 1,
+    max: MAX_PAGE_SIZE,
+    fallback: DEFAULT_PAGE_SIZE,
+  });
 
   const siteId = isSuperAdmin(session.role) ? (input.siteId ?? null) : session.siteId;
   if (!isSuperAdmin(session.role) && !siteId) {

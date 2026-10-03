@@ -3,15 +3,20 @@
 import { revalidatePath } from "next/cache";
 
 import { routing } from "@/i18n/routing";
-import { auth } from "@/lib/auth";
 import {
-  ROLE_CODES,
-  can,
-  inScope,
-  isSuperAdmin,
-  type PermissionCode,
-  type Role,
-} from "@/lib/permissions";
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  emptyPage,
+  fail,
+  parsePositiveInt,
+  requireSession,
+  type ApiErrorCode,
+  type Fail,
+  type Ok,
+  type Paginated,
+  type SessionContext,
+} from "@/lib/actions-shared";
+import { can, inScope, isSuperAdmin, type PermissionCode } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isSlugReservedForAdmin } from "@/lib/slug";
@@ -59,21 +64,11 @@ import { articleFormSchema, type ArticleFormValues } from "@/lib/validation/arti
  * · `lib/state-machine.ts` **零改动**：8 条边 / 边→角色 / C2 判定都是既有导出。
  */
 
-export type ArticleErrorCode =
-  | "UNAUTHORIZED"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "VALIDATION_FAILED"
-  | "SLUG_RESERVED"
-  | "SLUG_TAKEN"
-  | "INVALID_STATE_TRANSITION"
-  | "CONFLICT"
-  /** 软删除（回收站中）：对已软删除文章做编辑 / 重复删除（`docs/14` §2.2 L132） */
-  | "SOFT_DELETED"
-  | "INTERNAL_ERROR";
+/** 全站统一错误码（定义在 `@/lib/actions-shared`；此处保留旧名以兼容既有引用/注释） */
+export type ArticleErrorCode = ApiErrorCode;
 
-export type Ok<T> = { ok: true; data: T };
-export type Fail = { ok: false; code: ArticleErrorCode; message: string; field?: string };
+/** 信封与分页类型**定义已上移到 `@/lib/actions-shared`**，在此再导出让既有 import 路径继续可用 */
+export type { Fail, Ok, Paginated } from "@/lib/actions-shared";
 
 export type ArticleListItem = {
   id: string;
@@ -86,16 +81,6 @@ export type ArticleListItem = {
   viewCount: number;
   updatedAt: Date;
   commentCount: number;
-};
-
-export type Paginated<T> = {
-  items: T[];
-  page: number;
-  /** 从 1 开始 */
-  pageSize: number;
-  total: number;
-  totalPages: number;
-  hasNext: boolean;
 };
 
 export type ListArticlesInput = {
@@ -145,37 +130,12 @@ type SortOrder = "asc" | "desc";
 
 const DEFAULT_SORT_BY: SortBy = "updatedAt";
 const DEFAULT_SORT_ORDER: SortOrder = "desc";
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
 
-function fail(code: ArticleErrorCode, message: string, field?: string): Fail {
-  return field ? { ok: false, code, message, field } : { ok: false, code, message };
-}
-
-function emptyPage<T>(page: number, pageSize: number): Paginated<T> {
-  return { items: [], page, pageSize, total: 0, totalPages: 1, hasNext: false };
-}
+// `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` / `fail` / `emptyPage` / `isRole` / `parsePositiveInt`
+// 已上移到 `@/lib/actions-shared`（T3.6a；本文件 + `recycle/actions.ts` + 上传 Route Handler 三处共用）
 
 function isSortBy(value: string | undefined): value is SortBy {
   return value !== undefined && SORT_BY_WHITELIST.some((key) => key === value);
-}
-
-/** `session.user.role`（`string`）→ `Role`（零 `as` 强转） */
-function isRole(value: string): value is Role {
-  return ROLE_CODES.some((code) => code === value);
-}
-
-/** 仅接受正整数字符串；`0` / `-1` / `1.5` / `abc` / 空串 → `null` */
-function parsePositiveInt(value: string | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!/^[1-9]\d*$/.test(trimmed)) {
-    return null;
-  }
-  const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 /** 排序白名单 → Prisma `orderBy`（显式三分支，避免动态键的类型推断不确定） */
@@ -215,38 +175,7 @@ function nullableText(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-type SessionContext = {
-  userId: string;
-  /** 展示用名（`AuditRecord.operatorName` / `ArticleVersion.editor` 用，均非空） */
-  userLabel: string;
-  role: Role;
-  siteId: string | null;
-};
-
-type SessionResult = { ok: true; session: SessionContext } | { ok: false; fail: Fail };
-
-/** L1：会话 + 角色收窄（角色不在 4 个已知值内 → `FORBIDDEN`） */
-async function requireSession(): Promise<SessionResult> {
-  const session = await auth();
-
-  if (!session) {
-    return { ok: false, fail: fail("UNAUTHORIZED", "会话已过期，请重新登录。") };
-  }
-
-  if (!isRole(session.user.role)) {
-    return { ok: false, fail: fail("FORBIDDEN", "当前账号角色不可用，请联系管理员。") };
-  }
-
-  return {
-    ok: true,
-    session: {
-      userId: session.user.id,
-      userLabel: session.user.name ?? session.user.id,
-      role: session.user.role,
-      siteId: session.user.siteId ?? null,
-    },
-  };
-}
+// `SessionContext` / `SessionResult` / `requireSession()` 已上移到 `@/lib/actions-shared`（T3.6a）
 
 /** 数据范围（与 `listArticles` 同口径）：super_admin → 请求值（null = 全站）；其余角色锁本站 */
 function scopeSiteIdOf(session: SessionContext, requested?: string): string | null {
@@ -269,9 +198,16 @@ export async function listArticles(
   const { session } = scope;
 
   // ── 收敛（裁决 Q4：Action 层做 number 解析 + 钳制 + 白名单回落）─────────────
-  const page = parsePositiveInt(input.page) ?? 1;
-  const rawPageSize = parsePositiveInt(input.pageSize);
-  const pageSize = rawPageSize === null ? DEFAULT_PAGE_SIZE : Math.min(rawPageSize, MAX_PAGE_SIZE);
+  const page = parsePositiveInt(input.page, {
+    min: 1,
+    max: Number.MAX_SAFE_INTEGER,
+    fallback: 1,
+  });
+  const pageSize = parsePositiveInt(input.pageSize, {
+    min: 1,
+    max: MAX_PAGE_SIZE,
+    fallback: DEFAULT_PAGE_SIZE,
+  });
   const sortBy = isSortBy(input.sortBy) ? input.sortBy : DEFAULT_SORT_BY;
   const sortOrder: SortOrder = input.sortOrder === "asc" ? "asc" : DEFAULT_SORT_ORDER;
 
@@ -1056,9 +992,16 @@ export async function listPendingAudits(
     return fail("FORBIDDEN", "无权访问审核待办。");
   }
 
-  const page = parsePositiveInt(input.page) ?? 1;
-  const rawPageSize = parsePositiveInt(input.pageSize);
-  const pageSize = rawPageSize === null ? DEFAULT_PAGE_SIZE : Math.min(rawPageSize, MAX_PAGE_SIZE);
+  const page = parsePositiveInt(input.page, {
+    min: 1,
+    max: Number.MAX_SAFE_INTEGER,
+    fallback: 1,
+  });
+  const pageSize = parsePositiveInt(input.pageSize, {
+    min: 1,
+    max: MAX_PAGE_SIZE,
+    fallback: DEFAULT_PAGE_SIZE,
+  });
 
   const siteId = scopeSiteIdOf(session, input.siteId);
   if (!isSuperAdmin(session.role) && !siteId) {
