@@ -46,6 +46,66 @@ test.describe("后台登录（T1.8 已就绪，真跑）", () => {
   });
 });
 
+test.describe("演示链路 · 第 6 步 + M3·R5（T3.7 补）", () => {
+  /**
+   * 第 6 步断言（docs/16 §2.1 L97 原文：「登录成功跳 `/admin/dashboard`；**统计卡片与图表容器渲染**」）
+   *
+   * 前一 describe 已覆盖"跳转"这一半（L31）；此处补"卡片与图表容器渲染"。
+   * 选择器口径（规避 docs/00 §8 #60 的宽选择器三坑）：一律用稳定的 `data-slot` 锚点 ——
+   *   · 统计卡片标签 = `CardDescription` 文本（`admin/stat-card.tsx` L18）→ `getByText(label, { exact: true })`
+   *     ⚠ **不要**用 `[data-slot="card"]` 计数：仪表盘上 Card 共 **8** 个（4 张统计卡 + 1 张真图卡 + 3 张占位卡）
+   *   · 真图容器 = `ui/chart.tsx` L62 的 `data-slot="chart"`（3 个占位**不** import `chart.tsx` ⇒ 只应有 1 个）
+   *   · 占位文案 = `admin/chart-placeholder.tsx` L20「数据待 M5 接入」
+   */
+  test("第 6 步：仪表盘渲染 4 张统计卡片 + 真图容器 + 3 个占位", async ({ page }) => {
+    await page.goto("/admin/login");
+    await page.fill('input[name="username"]', "admin");
+    await page.fill('input[name="password"]', "admin123");
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/admin\/dashboard/);
+
+    // ① 4 张统计卡片（`{ exact: true }` 避免与卡片内 hint 文本冲突）
+    for (const label of ["站点数", "文章数", "用户数", "媒体数"]) {
+      await expect(page.getByText(label, { exact: true })).toBeVisible();
+    }
+
+    // ② 真图容器恰好 1 个，且其中确实渲染了 recharts 的 <svg>
+    await expect(page.locator('[data-slot="chart"]')).toHaveCount(1);
+    expect(await page.locator('[data-slot="chart"] svg').count()).toBeGreaterThan(0);
+
+    // ③ 3 个图表占位容器
+    await expect(page.getByText("数据待 M5 接入")).toHaveCount(3);
+  });
+
+  /**
+   * M3·R5 字段级提示（docs/16 §4.2 L299「表单校验（zod 4 + RHF）在错误输入下给出**字段级**提示」）
+   *
+   * 空表单直接提交 → 客户端 zod 先拦（`articleFormSchema`）→ `FormMessage` 渲染
+   * `p[data-slot="form-message"]`（`ui/form.tsx` L140）；必填 4 项 = channelId / title / slug / content
+   *（summary / cover 可选）。**不进 Server Action、不写库** ⇒ 这条用例最稳。
+   *
+   * ⚠ 提交按钮**不能**用裸 `button[type="submit"]`：后台布局的顶栏还有一个"退出登录"的 submit 按钮
+   *   （`admin/admin-topbar.tsx`）⇒ 会 strict mode violation，故按可访问名定位。
+   */
+  test("M3·R5：空表单提交给出字段级提示且不跳转", async ({ page }) => {
+    await page.goto("/admin/login");
+    await page.fill('input[name="username"]', "admin");
+    await page.fill('input[name="password"]', "admin123");
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/admin\/dashboard/);
+
+    await page.goto("/admin/articles/new");
+    await page.getByRole("button", { name: "保存草稿" }).click();
+
+    const messages = page.locator('p[data-slot="form-message"]');
+    await expect(messages.first()).toBeVisible();
+    expect(await messages.count()).toBeGreaterThanOrEqual(4);
+
+    // 被客户端校验拦下 ⇒ 未发起 Server Action、URL 不变
+    await expect(page).toHaveURL(/\/admin\/articles\/new$/);
+  });
+});
+
 test.describe("演示链路 · 第 1/2/3/9 步（T2.8 Part 1 解除 skip）", () => {
   test("第 1 步：首页有轮播卡片", async ({ page }) => {
     await page.goto("/main");
