@@ -54,11 +54,11 @@ test.describe("演示链路 · 第 6 步 + M3·R5（T3.7 补）", () => {
    * 前一 describe 已覆盖"跳转"这一半（L31）；此处补"卡片与图表容器渲染"。
    * 选择器口径（规避 docs/00 §8 #60 的宽选择器三坑）：一律用稳定的 `data-slot` 锚点 ——
    *   · 统计卡片标签 = `CardDescription` 文本（`admin/stat-card.tsx` L18）→ `getByText(label, { exact: true })`
-   *     ⚠ **不要**用 `[data-slot="card"]` 计数：仪表盘上 Card 共 **8** 个（4 张统计卡 + 1 张真图卡 + 3 张占位卡）
-   *   · 真图容器 = `ui/chart.tsx` L62 的 `data-slot="chart"`（3 个占位**不** import `chart.tsx` ⇒ 只应有 1 个）
-   *   · 占位文案 = `admin/chart-placeholder.tsx` L20「数据待 M5 接入」
+   *     ⚠ **不要**用 `[data-slot="card"]` 计数：仪表盘上 Card 共 **8** 个（4 张统计卡 + 4 张图表卡）
+   *   · 真图容器 = `ui/chart.tsx` L62 的 `data-slot="chart"`（**4 个**：趋势 / 来源分布 / 文章排行 / 栏目排行）
+   *   · M5-3a 起**不再有**占位卡：`admin/chart-placeholder.tsx` 已删除（原「数据待 M5 接入」文案随之消失）
    */
-  test("第 6 步：仪表盘渲染 4 张统计卡片 + 真图容器 + 3 个占位", async ({ page }) => {
+  test("第 6 步：仪表盘渲染 4 张统计卡片 + 4 个真图", async ({ page }) => {
     await page.goto("/admin/login");
     await page.fill('input[name="username"]', "admin");
     await page.fill('input[name="password"]', "admin123");
@@ -70,12 +70,15 @@ test.describe("演示链路 · 第 6 步 + M3·R5（T3.7 补）", () => {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
 
-    // ② 真图容器恰好 1 个，且其中确实渲染了 recharts 的 <svg>
-    await expect(page.locator('[data-slot="chart"]')).toHaveCount(1);
-    expect(await page.locator('[data-slot="chart"] svg').count()).toBeGreaterThan(0);
+    // ② 图表容器恰好 4 个（趋势 / 来源分布 / 文章排行 / 栏目排行）
+    //    M5-3a：原为 1 真图 + 3 占位（`数据待 M5 接入`）；四图接真数据后占位断言删除
+    const charts = page.locator('[data-slot="chart"]');
+    await expect(charts).toHaveCount(4);
 
-    // ③ 3 个图表占位容器
-    await expect(page.getByText("数据待 M5 接入")).toHaveCount(3);
+    // ③ **每个**容器内都渲染了 recharts 的 `<svg>`（即"四图都有数据"）
+    for (let i = 0; i < 4; i += 1) {
+      expect(await charts.nth(i).locator("svg").count()).toBeGreaterThan(0);
+    }
   });
 
   /**

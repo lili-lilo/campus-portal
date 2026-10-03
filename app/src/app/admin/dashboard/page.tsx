@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 
-import { ChartPlaceholder } from "@/components/admin/chart-placeholder";
+import { RankingBarChart } from "@/components/admin/ranking-bar-chart";
+import { SourceBreakdownChart } from "@/components/admin/source-breakdown-chart";
 import { StatCard } from "@/components/admin/stat-card";
 import { VisitTrendChart } from "@/components/admin/visit-trend-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { getDashboardStats, getVisitTrend } from "./actions";
+import { getArticleRanking, getChannelRanking, getSourceBreakdown } from "../statistics/actions";
 
 export const metadata: Metadata = { title: "仪表盘" };
 
@@ -26,7 +28,15 @@ const STATUS_LABELS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 export default async function DashboardPage() {
-  const [statsResult, trendResult] = await Promise.all([getDashboardStats(), getVisitTrend()]);
+  // M5-3a：4 图全部接真数据（3 个新 Action 来自 `../statistics/actions`，与 /admin/statistics 共用）
+  const [statsResult, trendResult, sourceResult, articleRankResult, channelRankResult] =
+    await Promise.all([
+      getDashboardStats(),
+      getVisitTrend(),
+      getSourceBreakdown(),
+      getArticleRanking(),
+      getChannelRanking(),
+    ]);
 
   if (!statsResult.ok) {
     return <DashboardNotice message={statsResult.message} />;
@@ -36,9 +46,24 @@ export default async function DashboardPage() {
     return <DashboardNotice message={trendResult.message} />;
   }
 
+  if (!sourceResult.ok) {
+    return <DashboardNotice message={sourceResult.message} />;
+  }
+
+  if (!articleRankResult.ok) {
+    return <DashboardNotice message={articleRankResult.message} />;
+  }
+
+  if (!channelRankResult.ok) {
+    return <DashboardNotice message={channelRankResult.message} />;
+  }
+
   const { siteCount, userCount, mediaCount, articleCount, articlesByStatus, scopeSiteId } =
     statsResult.data;
   const trend = trendResult.data;
+  const sourceBreakdown = sourceResult.data;
+  const articleRanking = articleRankResult.data;
+  const channelRanking = channelRankResult.data;
 
   // 数据范围口径（T3.2 裁决 2）：super_admin → 全站聚合；其余角色 → 锁本站
   const scopeLabel = scopeSiteId === null ? "全站聚合" : "本站范围";
@@ -82,12 +107,44 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <ChartPlaceholder
-          title="来源分布"
-          hint="Search / Direct / External（getSourceBreakdown）"
-        />
-        <ChartPlaceholder title="文章排行" hint="按 viewCount 倒序（getArticleRanking）" />
-        <ChartPlaceholder title="栏目排行" hint="按栏目下文章数 / 总浏览量（getChannelRanking）" />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">来源分布</CardTitle>
+            <CardDescription>近 90 天 · {scopeLabel} · 数据源 Statistic.source</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SourceBreakdownChart data={sourceBreakdown} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">文章排行</CardTitle>
+            <CardDescription>按浏览量倒序 · 已发布 · {scopeLabel}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RankingBarChart
+              data={articleRanking.map((row) => ({ label: row.title, value: row.viewCount }))}
+              barColor="#1a4f8b"
+              valueLabel="浏览量"
+              emptyText="暂无已发布文章。"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">栏目排行</CardTitle>
+            <CardDescription>按栏目下已发布文章数 · {scopeLabel}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RankingBarChart
+              data={channelRanking.map((row) => ({ label: row.name, value: row.count }))}
+              barColor="#15803d"
+              valueLabel="文章数"
+            />
+          </CardContent>
+        </Card>
       </section>
     </div>
   );
