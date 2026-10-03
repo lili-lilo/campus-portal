@@ -27,8 +27,19 @@ async function login(page: Page, username: string) {
   await expect(page.locator('nav[aria-label="后台导航"]')).toBeVisible();
 }
 
-/** 以指定账号新建草稿 → 返回编辑页 URL（同 `audit-workflow.spec.ts` 的 helper） */
-async function createDraft(page: Page, username: string, title: string): Promise<string> {
+/**
+ * 以指定账号新建草稿 → 返回编辑页 URL（同 `audit-workflow.spec.ts` 的 helper）
+ *
+ * @param channelLabel 指定时按**栏目下拉的 label 精确选择**（跨站点场景：`super_admin` 的下拉含
+ *   4 个站点的栏目，label 形如 `新闻动态（计算机学院）` —— 站点名后缀见 `article-form.tsx` L171-L177）；
+ *   缺省仍选 `index: 1`（第一个真实栏目）。
+ */
+async function createDraft(
+  page: Page,
+  username: string,
+  title: string,
+  channelLabel?: string,
+): Promise<string> {
   await login(page, username);
   await page.goto("/admin/articles/new");
 
@@ -46,7 +57,11 @@ async function createDraft(page: Page, username: string, title: string): Promise
   await page.fill('input[name="title"]', title);
 
   const channelSelect = page.locator('select[name="channelId"]');
-  await channelSelect.selectOption({ index: 1 }); // index 0 = 「请选择栏目」(value="")
+  if (channelLabel === undefined) {
+    await channelSelect.selectOption({ index: 1 }); // index 0 = 「请选择栏目」(value="")
+  } else {
+    await channelSelect.selectOption({ label: channelLabel });
+  }
   await expect(channelSelect).not.toHaveValue("");
 
   await page.getByRole("button", { name: "保存草稿" }).click();
@@ -185,7 +200,25 @@ test.describe("4 角色越权（T4.1b 解除部分 skip：界面无入口）", (
     await expect(page.getByRole("button", { name: "撤稿" })).toHaveCount(0);
   });
 
-  test.skip("用例 4：site_admin 访问其它站点内容 → 403（L3 数据范围）", async () => {
-    // TODO（M4 后段）：需要第二站点的固定数据 + `site_admin` 的跨站 URL 直达断言
+  test("用例 4：site_admin 访问其它站点内容 → 404（L3 数据范围）", async ({ page }) => {
+    // 用 super_admin（admin）把稿子建到**计算机学院**站点下：跨站时栏目下拉会带站点名后缀
+    // （`article-form.tsx` L171-L177），故可按 label 精确选择（子站有 list 栏目：seed L139-L142）
+    const crossSiteUrl = await createDraft(
+      page,
+      "admin",
+      "越权4 跨站稿件",
+      "新闻动态（计算机学院）",
+    );
+
+    const id = crossSiteUrl.match(/\/admin\/articles\/([^/]+)\/edit$/)?.[1] ?? "";
+    expect(id).not.toBe("");
+
+    // `site_admin` 属 main 站（seed L157）⇒ 打开别站稿件必须被 L3 挡下（`getArticle` 的 `inScope`）
+    await login(page, "site_admin");
+    await gotoExpect404(page, `/admin/articles/${id}/edit`);
+
+    // 列表层同样看不到（站点范围过滤），不只是一页 gate
+    await page.goto("/admin/articles?keyword=越权4");
+    await expect(page.locator("tbody tr")).toHaveCount(0);
   });
 });

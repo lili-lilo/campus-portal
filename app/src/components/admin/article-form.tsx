@@ -69,8 +69,11 @@ export function ArticleForm({
   channelTree,
 }: {
   mode: "create" | "edit";
-  /** 编辑模式必传：表单初值 + 文章 id */
-  initialData?: ArticleFormValues & { id: string };
+  /**
+   * 编辑模式必传：表单初值 + 文章 id。
+   * `status` = **打开表单时看到的状态**，提交时作为 `fromStatus` 回带（激活服务端 **C2** 乐观并发校验）。
+   */
+  initialData?: ArticleFormValues & { id: string; status?: string };
   channelTree: readonly ChannelOption[];
 }) {
   const router = useRouter();
@@ -131,7 +134,14 @@ export function ArticleForm({
       const result =
         mode === "create"
           ? await createArticle(values)
-          : await updateArticle({ id: initialData?.id ?? "", ...values });
+          : await updateArticle({
+              id: initialData?.id ?? "",
+              // C2（docs/13 §7.4 L198 / docs/14 §5.1 L300）：回带"打开表单时看到的状态"，
+              // 服务端 `checkExpectedStatus` 比对不一致 → `INVALID_STATE_TRANSITION`
+              // （例如编辑期间被别人流转/发布，提交时会被拦下而不是静默覆盖）
+              fromStatus: initialData?.status ?? undefined,
+              ...values,
+            });
 
       if (!result.ok) {
         // `Fail.field` 只用于服务端独有校验（docs/14 §2.1 L89；T3.5 裁决 Q4）

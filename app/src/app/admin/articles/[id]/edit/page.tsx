@@ -5,10 +5,11 @@ import { ArticleForm } from "@/components/admin/article-form";
 import { ArticleWorkflowActions } from "@/components/admin/article-workflow-actions";
 import { AuditTimeline } from "@/components/admin/audit-timeline";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { VersionHistory } from "@/components/admin/version-history";
 import { auth } from "@/lib/auth";
 import { ROLE_CODES, can, type Role } from "@/lib/permissions";
 
-import { getArticle, getChannelTree, listAuditRecords } from "../../actions";
+import { getArticle, getChannelTree, listAuditRecords, listVersions } from "../../actions";
 
 export const metadata: Metadata = { title: "编辑文章" };
 
@@ -53,10 +54,11 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     notFound();
   }
 
-  const [article, channels, audits] = await Promise.all([
+  const [article, channels, audits, versions] = await Promise.all([
     getArticle({ id }),
     getChannelTree({ siteId: session?.user.siteId ?? undefined }),
     listAuditRecords({ articleId: id }),
+    listVersions({ articleId: id }),
   ]);
 
   if (!article.ok) {
@@ -96,6 +98,8 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
           mode="edit"
           initialData={{
             id: detail.id,
+            // 提交时作为 `fromStatus` 回带（C2：编辑期间稿件被别人流转 → 提交被拦）
+            status: detail.status,
             channelId: detail.channelId,
             title: detail.title,
             slug: detail.slug,
@@ -122,6 +126,15 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
           </p>
         )}
       </section>
+
+      {/* 版本历史（M4 批次 1）：C3 快照只在「编辑已发布文章」时产生，故平时这里是空态 */}
+      {versions.ok ? (
+        <VersionHistory versions={versions.data} />
+      ) : (
+        <p role="alert" className={ALERT_CLASS}>
+          {versions.message}
+        </p>
+      )}
     </div>
   );
 }

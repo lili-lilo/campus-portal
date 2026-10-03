@@ -189,4 +189,44 @@ test.describe("审核流 8 条边（T4.1b 解除 skip）", () => {
     await expect(page.locator('[data-slot="audit-timeline"]')).toContainText("发布");
     await expect(page.locator('[data-slot="audit-timeline"]')).toContainText("撤稿");
   });
+
+  test("约束 C3：编辑已发布文章前落 ArticleVersion 快照（并回落 draft，边 8）", async ({
+    page,
+  }) => {
+    const editUrl = await createDraft(page, "editor", "C3 快照测试");
+
+    // 推到「已发布」：editor 提交初审 → auditor 初审通过 → auditor 发布
+    await clickAction(page, "提交初审");
+    await login(page, "auditor");
+    await page.goto(editUrl);
+    await clickAction(page, "初审通过");
+    await clickAction(page, "发布");
+    await expectStatus(page, "已发布");
+
+    // editor 回到编辑页：此刻**还没有**任何版本快照（新建 + 链上发布都不落快照）
+    await login(page, "editor");
+    await page.goto(editUrl);
+    await expect(page.locator('[data-slot="version-item"]')).toHaveCount(0);
+
+    // ⚠ 故意改标题：这样"快照存的是**编辑前**内容"才可验证（标题不变则新旧同值，断言无意义）
+    await page.fill('input[name="title"]', "C3 快照测试（已改）");
+    await page.getByRole("button", { name: "保存草稿" }).click();
+
+    // 保存成功会跳回列表（T3.5 口径）⇒ **必须重新进入编辑页**再断言
+    await expect(page).toHaveURL(/\/admin\/articles$/);
+    await page.goto(editUrl);
+
+    // C3：恰好 1 条快照，且标题是**旧值**（不含"（已改）"）
+    await expect(page.locator('[data-slot="version-item"]')).toHaveCount(1);
+    await expect(page.locator('[data-slot="version-item"]')).toContainText("C3 快照测试");
+    await expect(page.locator('[data-slot="version-item"]')).not.toContainText("（已改）");
+
+    // 边 8：状态回落「草稿」；文章本身已是新标题
+    await expectStatus(page, "草稿");
+    await expect(page.locator('input[name="title"]')).toHaveValue("C3 快照测试（已改）");
+
+    // C1：审计时间线 4 条（提交 / 初审 / 发布 / 保存草稿），且含「已发布 → 草稿」
+    await expect(page.locator('[data-slot="audit-item"]')).toHaveCount(4);
+    await expect(page.locator('[data-slot="audit-timeline"]')).toContainText("已发布 → 草稿");
+  });
 });

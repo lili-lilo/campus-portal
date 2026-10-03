@@ -1180,3 +1180,65 @@ export async function listAuditRecords(input: {
 
   return { ok: true, data: rows };
 }
+
+/** 一条版本快照（编辑页「版本历史」用；`docs/14` §5.2 L283 的 `listVersions`） */
+export type ArticleVersionItem = {
+  id: string;
+  version: number;
+  title: string;
+  editor: string;
+  createdAt: Date;
+};
+
+/**
+ * 某篇文章的版本快照（编辑页「版本历史」）。L1 + **L2 `article.read`** + **C4/L3 `inScope()`**
+ * （与 `getArticle` / `listAuditRecords` 同口径），最新在前。
+ *
+ * · 快照由 `writeArticle` 在 `fromStatus === "published"` 时写入（C3，`docs/13` §7.4 L199）
+ * · **不分页**：M4 的文章版本数 < 10（`docs/14` L283 虽给了 `page/pageSize`，此处从简；
+ *   若将来版本变多，按 `Paginated<T>` 补齐即可）
+ */
+export async function listVersions(input: {
+  articleId: string;
+}): Promise<Ok<ArticleVersionItem[]> | Fail> {
+  const scope = await requireSession();
+
+  if (!scope.ok) {
+    return scope.fail;
+  }
+
+  const { session } = scope;
+
+  // L2：读稿件权限
+  if (!can(session.role, "article.read")) {
+    return fail("FORBIDDEN", "无权查看版本历史。");
+  }
+
+  const article = await prisma.article.findFirst({
+    where: { id: input.articleId, deletedAt: null },
+    select: { id: true, siteId: true, createdById: true },
+  });
+  if (!article) {
+    return fail("NOT_FOUND", "文章不存在或已删除。");
+  }
+
+  // C4 / L3：与 `getArticle` 同口径
+  const scopeError = inScope(
+    session.role,
+    session.siteId,
+    { siteId: article.siteId, createdById: article.createdById },
+    session.userId,
+  );
+  if (scopeError) {
+    return fail("FORBIDDEN", "无权查看该文章的版本历史。");
+  }
+
+  const rows = await prisma.articleVersion.findMany({
+    where: { articleId: article.id },
+    // 最新在前；同一时间戳时用 `version` 兜底排序（`version` 在同文章内唯一递增）
+    orderBy: [{ createdAt: "desc" }, { version: "desc" }],
+    select: { id: true, version: true, title: true, editor: true, createdAt: true },
+  });
+
+  return { ok: true, data: rows };
+}
