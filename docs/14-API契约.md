@@ -195,13 +195,13 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 | `/admin/dashboard` | `getDashboardStats` / `getVisitTrend` / `getArticleRanking` / `getChannelRanking` | — | `Statistic`、`Article`、`Channel` |
 | `/admin/articles` | `listArticles` | `deleteArticle` / `restoreArticle` / `bulkDeleteArticles` | `Article` |
 | `/admin/articles/new` | `getChannelTree` / `listMedia` | `createArticle` / `saveArticleDraft` | `Article`、`Channel`、`Media` |
-| `/admin/articles/[id]/edit` | `getArticle` / `listVersions` / `listAuditRecords` / `listAttachments` | `updateArticle` / `submitForReview` / `reviewArticle` / `publishArticle` / `rejectArticle` / `withdrawArticle` / `restoreVersion` / `deleteAttachment` | `Article`、`ArticleVersion`、`AuditRecord`、`Attachment` |
+| `/admin/articles/[id]/edit` | `getArticle` / `listVersions` / `listAuditRecords` / `listAttachments` | `updateArticle` / `submitForReview` / `reviewArticle` / `publishArticle` / `withdrawArticle` / `restoreVersion` / `deleteAttachment` | `Article`、`ArticleVersion`、`AuditRecord`、`Attachment` |
 | `/admin/channels` | `getChannelTree` / `listNavigations` | `createChannel` / `updateChannel` / `deleteChannel` / `reorderChannels` / `createNavigation` / `updateNavigation` / `deleteNavigation` | `Channel`、`Navigation` |
 | `/admin/media` | `listMedia` / `listAlbums` | `updateMedia` / `deleteMedia` / `bulkDeleteMedia` | `Media` |
 | `/admin/users` | `listUsers` | `createUser` / `updateUser` / `resetPassword` / `toggleUserStatus` / `assignUserRole` | `User`、`UserRole` |
 | `/admin/roles` | `listRoles` / `listPermissions` / `getRolePermissions` | `createRole` / `updateRole` / `deleteRole` / `setRolePermissions` / `revokeUserRole` | `Role`、`Permission`、`RolePermission`、`UserRole` |
 | `/admin/sites` | `listSites` | `createSite` / `updateSite` / `toggleSiteStatus` | `Site` |
-| `/admin/audits` | `listPendingAudits` | `reviewArticle` / `publishArticle` / `rejectArticle` | `Article`、`AuditRecord` |
+| `/admin/audits` | `listPendingAudits` | `reviewArticle` / `publishArticle` | `Article`、`AuditRecord` |
 | `/admin/forms` | `listForms` / `listFormData` | `createForm` / `updateForm` / `deleteForm` / `updateFormDataStatus` | `Form`、`FormData` |
 | `/admin/comments` | `listComments` | `approveComment` / `rejectComment` / `replyComment` / `deleteComment` | `Comment` |
 | `/admin/messages` | `listMessages` | `replyMessage` / `updateMessageStatus` / `deleteMessage` | `Message` |
@@ -210,6 +210,8 @@ requirePermission(session, "article.update", { siteId: target.siteId })
 | **页面路由之外** | — | — | — |
 | 单页编辑（学校简介等） | `getPage` / `listPages` | `createPage` / `updatePage` / `deletePage` | `Page` |
 | 回收站 | `listRecycleBin` | `restoreFromRecycle` / `purgeFromRecycle` | `Article`、`Page`、`Media`、`Comment`、`Attachment` |
+
+> **退回（`reject`）的归口**：`reviewArticle` 自带 `action: "reject"`（§5.1 的 `reviewArticle` 行），因此**不再单列 `rejectArticle`** —— 编辑页与 `/admin/audits` 的"退回"入口统一调 `reviewArticle({ id, action: "reject", comment? })`（边 4/5）。
 
 > **覆盖检查**：§3 共 **15 行**（14 个菜单页面 + 单页 + 回收站；另有 `/admin/login` 与 2 条"页面路由之外"的入口），全部有读写入口；每个 `13` 的业务 model 都被至少一个入口覆盖（除 `Account`/`Session`/`VerificationToken`，由 Auth.js 内部管理）。
 

@@ -1,14 +1,32 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
+import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
-import { ROLE_CODES, inScope, isSuperAdmin, type Role } from "@/lib/permissions";
+import {
+  ROLE_CODES,
+  can,
+  inScope,
+  isSuperAdmin,
+  type PermissionCode,
+  type Role,
+} from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isSlugReservedForAdmin } from "@/lib/slug";
 import {
+  checkExpectedStatus,
   isArticleStatus,
+  publishArticle as transitionPublish,
+  reviewArticle as transitionReview,
+  rolesForAction,
   saveArticleDraft as transitionSaveDraft,
+  submitForReview as transitionSubmit,
+  withdrawArticle as transitionWithdraw,
   type ArticleStatus,
+  type TransitionAction,
+  type TransitionResult,
 } from "@/lib/state-machine";
 import { articleFormSchema, type ArticleFormValues } from "@/lib/validation/article";
 
@@ -30,6 +48,15 @@ import { articleFormSchema, type ArticleFormValues } from "@/lib/validation/arti
  *   若按 L2 卡会直接做不了新建表单；L2 统一留第 4 周 `requirePermission`（docs/14 §2.4 L163-L169）。T3.7 再抽走。
  * · `AuditRecord` 的 `operatorName` / `role` **非空**（schema.prisma L240 / L244），故每次留痕都带上。
  * · 日期字段返回 `Date`（RSC 序列化支持，非 HTTP JSON）：与 `src/lib/pages.ts` 的 `updatedAt: Date` 同款先例。
+ *
+ * ── T4.1 审核流（docs/13 §7.2 边 1~7 / docs/14 §5.1 L292-L295）──────────────────
+ * · 四个写 Action：`submitForReview`（边 1/7）/ `reviewArticle`（边 2 + 边 4/5）/ `publishArticle`（边 3）
+ *   / `withdrawArticle`（边 6）；边 8（`saveArticleDraft`）已在 T3.5 落地。
+ * · 全部经 **`runTransition()`** 一条流水线：L1 → 取稿 → 状态收窄 → **C2**（`fromStatus` 比对）
+ *   → L2 `can(权限码)` + 边角色白名单 → **C4** `inScope()` → 边解析 → **C1**（`$transaction` 内
+ *   `article.update` + `auditRecord.create`）→ 需要时 `revalidatePath`（A25）。
+ * · **退回不再单列 `rejectArticle`**：统一走 `reviewArticle({ action: "reject" })`（docs/14 §3 L214 注）。
+ * · `lib/state-machine.ts` **零改动**：8 条边 / 边→角色 / C2 判定都是既有导出。
  */
 
 export type ArticleErrorCode =
@@ -531,7 +558,7 @@ export async function createArticle(input: ArticleWriteInput): Promise<Ok<{ id: 
  *   · A30：`content` 写入前 `sanitizeHtml()`
  */
 async function writeArticle(
-  input: ArticleWriteInput & { id: string },
+  input: ArticleWriteInput & { id: string; fromStatus?: string },
 ): Promise<Ok<{ id: string }> | Fail> {
   const scope = await requireSession();
 
@@ -611,6 +638,14 @@ async function writeArticle(
     return fail("INVALID_STATE_TRANSITION", "文章当前状态异常，无法保存。");
   }
   const fromStatus: ArticleStatus = article.status;
+
+  // C2（T4.1 回补，docs/13 §7.4 L198 / docs/14 §2.5 L181）：客户端若带了 fromStatus 必须与库中一致
+  if (input.fromStatus !== undefined) {
+    if (!isArticleStatus(input.fromStatus) || checkExpectedStatus(input.fromStatus, fromStatus)) {
+      return fail("INVALID_STATE_TRANSITION", "文章状态已被他人变更，请刷新后重试。");
+    }
+  }
+
   // 边 8：任意状态 → draft（`transition.to` 恒为 "draft"；草稿→草稿不落快照）
   const transition = transitionSaveDraft(fromStatus);
   if (!transition.ok) {
@@ -680,7 +715,7 @@ async function writeArticle(
 
 /** 更新文章（编辑页「保存草稿」走这里；`published` 会先落快照，见 C3） */
 export async function updateArticle(
-  input: ArticleWriteInput & { id: string },
+  input: ArticleWriteInput & { id: string; fromStatus?: string },
 ): Promise<Ok<{ id: string }> | Fail> {
   return writeArticle(input);
 }
@@ -690,7 +725,259 @@ export async function updateArticle(
  * 「草稿 → 草稿」天然不落快照；若当前是 `published`，C3 要求先落快照，故此处不豁免。
  */
 export async function saveArticleDraft(
-  input: ArticleWriteInput & { id: string },
+  input: ArticleWriteInput & { id: string; fromStatus?: string },
 ): Promise<Ok<{ id: string }> | Fail> {
   return writeArticle(input);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T4.1 审核流：状态流转（docs/13 §7.2 边 1~7 / docs/14 §5.1 L292-L295）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 写 Action 的成功返回：带上新状态，UI 可直接更新徽标（不必二次取数） */
+export type TransitionOk = { id: string; status: ArticleStatus };
+
+/**
+ * A25（docs/15 §6 L303-L304）：发布 / 撤稿后让前台**立即**可见（或立即消失）。
+ *
+ * 路径口径（docs/15 §3.1 U5 / L399）：默认语言 `zh` **不带前缀**，其余语言带前缀（如 `/en`），
+ * 故按 `routing` 推导前缀而不是硬编码。只失效该文章波及的 4 条路径 × 语言数。
+ */
+function revalidatePublicPaths(input: {
+  siteSlug: string;
+  channelSlug: string;
+  slug: string;
+}): void {
+  const prefixes = [
+    "",
+    ...routing.locales
+      .filter((locale) => locale !== routing.defaultLocale)
+      .map((locale) => `/${locale}`),
+  ];
+  const pages = [
+    `/${input.siteSlug}`,
+    `/${input.siteSlug}/news`,
+    `/${input.siteSlug}/${input.channelSlug}`,
+    `/${input.siteSlug}/${input.channelSlug}/${input.slug}`,
+  ];
+
+  for (const prefix of prefixes) {
+    for (const page of pages) {
+      revalidatePath(`${prefix}${page}`);
+    }
+  }
+}
+
+/**
+ * 状态流转的公共流水线（T4.1）—— 一次落齐全部约束：
+ *   1. **L1** `requireSession()`（会话 + 角色收窄）
+ *   2. 取稿（`deletedAt: null`）→ 当前状态 `isArticleStatus` 收窄
+ *   3. **C2** 客户端带了 `fromStatus` 时必须与库中一致（docs/13 §7.4 L198 / docs/14 §2.5 L181）
+ *   4. **L2** `can(role, 权限码)` + **边角色白名单** `rolesForAction()`（docs/13 §7.2「可操作角色」列）
+ *   5. **C4** L3/L4 `inScope()`（`editor` 仅本人稿件；`auditor`/`site_admin` 限本站）
+ *   6. 解析边 → 目标状态 + `step`（`lib/state-machine.ts` 的 `resolve`）
+ *   7. **C1** `$transaction` 内 `article.update` + `auditRecord.create`（同事务留痕）
+ *   8. 受影响时 `revalidatePath`（A25）
+ */
+async function runTransition(input: {
+  id: string;
+  action: TransitionAction;
+  /** docs/14 §5.1 四行的「权限」列 */
+  permission: PermissionCode;
+  /** 边解析器（`lib/state-machine.ts` 导出，导入时已 `as transition*` 别名） */
+  resolve: (from: ArticleStatus) => TransitionResult;
+  fromStatus?: string;
+  comment?: string;
+  /** 额外要写的字段（当前只有 `publishArticle` 的 `publishTime`） */
+  data?: { publishTime?: Date };
+  /** 是否失效前台路径（只有影响"前台是否可见"的两条边需要） */
+  revalidate?: boolean;
+}): Promise<Ok<TransitionOk> | Fail> {
+  const scope = await requireSession();
+
+  if (!scope.ok) {
+    return scope.fail;
+  }
+
+  const { session } = scope;
+
+  const article = await prisma.article.findFirst({
+    where: { id: input.id, deletedAt: null },
+    select: {
+      id: true,
+      siteId: true,
+      slug: true,
+      status: true,
+      createdById: true,
+      site: { select: { slug: true } },
+      channel: { select: { slug: true } },
+    },
+  });
+  if (!article) {
+    return fail("NOT_FOUND", "文章不存在或已删除。");
+  }
+
+  if (!isArticleStatus(article.status)) {
+    return fail("INVALID_STATE_TRANSITION", "文章当前状态异常，无法流转。");
+  }
+  const current: ArticleStatus = article.status;
+
+  // C2：乐观并发校验（防"打开编辑页期间被别人流转"后仍提交）
+  if (input.fromStatus !== undefined) {
+    if (!isArticleStatus(input.fromStatus) || checkExpectedStatus(input.fromStatus, current)) {
+      return fail("INVALID_STATE_TRANSITION", "文章状态已被他人变更，请刷新后重试。");
+    }
+  }
+
+  // L2：权限码
+  if (!can(session.role, input.permission)) {
+    return fail("FORBIDDEN", "无权执行该操作。");
+  }
+
+  // 边的角色白名单（与 L2 双重校验；两者口径一致，见 docs/13 §7.2 与 permissions.ts）
+  if (!rolesForAction(input.action, current).includes(session.role)) {
+    return fail("FORBIDDEN", "当前角色不能执行该流转。");
+  }
+
+  // C4：数据范围
+  const scopeError = inScope(
+    session.role,
+    session.siteId,
+    { siteId: article.siteId, createdById: article.createdById },
+    session.userId,
+  );
+  if (scopeError) {
+    return fail("FORBIDDEN", "无权操作该文章。");
+  }
+
+  const transition = input.resolve(current);
+  if (!transition.ok) {
+    return fail("INVALID_STATE_TRANSITION", "当前状态不允许该操作，请刷新后重试。");
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.article.update({
+        where: { id: article.id },
+        data: { status: transition.to, ...input.data },
+      });
+
+      // C1：状态变更必须留痕（非空字段 operatorName / role 见 schema.prisma L240 / L244）
+      await tx.auditRecord.create({
+        data: {
+          articleId: article.id,
+          step: transition.step,
+          fromStatus: transition.from,
+          toStatus: transition.to,
+          operatorName: session.userLabel,
+          userId: session.userId,
+          role: session.role,
+          comment: input.comment ?? null,
+        },
+      });
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return fail("CONFLICT", "操作冲突，请刷新后重试。");
+    }
+    throw error;
+  }
+
+  if (input.revalidate) {
+    revalidatePublicPaths({
+      siteSlug: article.site.slug,
+      channelSlug: article.channel.slug,
+      slug: article.slug,
+    });
+  }
+
+  return { ok: true, data: { id: article.id, status: transition.to } };
+}
+
+/** 边 1 / 边 7：提交初审（`draft` 或 `withdrawn` → `pending_first`，docs/14 §5.1 L292） */
+export async function submitForReview(input: {
+  id: string;
+  fromStatus?: string;
+}): Promise<Ok<TransitionOk> | Fail> {
+  return runTransition({
+    id: input.id,
+    action: "submitForReview",
+    permission: "article.submit",
+    resolve: transitionSubmit,
+    fromStatus: input.fromStatus,
+  });
+}
+
+/** 边 2（`pass`）/ 边 4·5（`reject`）：初审通过或退回（docs/14 §5.1 L293） */
+export async function reviewArticle(input: {
+  id: string;
+  action: "pass" | "reject";
+  comment?: string;
+  fromStatus?: string;
+}): Promise<Ok<TransitionOk> | Fail> {
+  if (input.action !== "pass" && input.action !== "reject") {
+    return fail("VALIDATION_FAILED", "action 只能是 pass 或 reject。", "action");
+  }
+  const verdict = input.action;
+
+  return runTransition({
+    id: input.id,
+    action: verdict === "pass" ? "reviewArticle:pass" : "reviewArticle:reject",
+    permission: "article.audit",
+    resolve: (from) => transitionReview(from, verdict),
+    fromStatus: input.fromStatus,
+    comment: input.comment,
+  });
+}
+
+/**
+ * 边 3：终审通过并发布（`pending_final` → `published`，docs/14 §5.1 L294）。
+ *
+ * `publishTime` 为**未来**时间表示"定时发布"（docs/14 §5.9 L503）：状态立即置 `published`，
+ * 前台是否展示由 `publishTime <= now` 决定；缺省则写当前时间（"立即发布"的发布时间）。
+ * 发布直接影响前台可见性 ⇒ 需 `revalidatePath`（A25）。
+ */
+export async function publishArticle(input: {
+  id: string;
+  publishTime?: string | Date;
+  fromStatus?: string;
+}): Promise<Ok<TransitionOk> | Fail> {
+  let publishTime: Date;
+
+  if (input.publishTime === undefined) {
+    publishTime = new Date();
+  } else {
+    publishTime =
+      input.publishTime instanceof Date ? input.publishTime : new Date(input.publishTime);
+    if (Number.isNaN(publishTime.getTime())) {
+      return fail("VALIDATION_FAILED", "publishTime 不是合法时间。", "publishTime");
+    }
+  }
+
+  return runTransition({
+    id: input.id,
+    action: "publishArticle",
+    permission: "article.publish",
+    resolve: transitionPublish,
+    fromStatus: input.fromStatus,
+    data: { publishTime },
+    revalidate: true,
+  });
+}
+
+/** 边 6：撤稿下架（`published` → `withdrawn`，docs/14 §5.1 L295；`editor` 无权） */
+export async function withdrawArticle(input: {
+  id: string;
+  comment?: string;
+  fromStatus?: string;
+}): Promise<Ok<TransitionOk> | Fail> {
+  return runTransition({
+    id: input.id,
+    action: "withdrawArticle",
+    permission: "article.withdraw",
+    resolve: transitionWithdraw,
+    fromStatus: input.fromStatus,
+    comment: input.comment,
+    revalidate: true,
+  });
 }
