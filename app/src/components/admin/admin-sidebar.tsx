@@ -1,3 +1,4 @@
+import { AdminNavItem } from "@/components/admin/admin-nav-item";
 import { ROLE_CODES, can, type Role } from "@/lib/permissions";
 
 /**
@@ -66,13 +67,7 @@ export function AdminNavList({ items }: { items: readonly AdminMenuItem[] }) {
   return (
     <nav className="flex flex-col gap-1 text-sm" aria-label="后台导航">
       {items.map((item) => (
-        <a
-          key={item.href}
-          href={item.href}
-          className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          {item.label}
-        </a>
+        <AdminNavItem key={item.href} href={item.href} label={item.label} />
       ))}
     </nav>
   );
@@ -80,7 +75,7 @@ export function AdminNavList({ items }: { items: readonly AdminMenuItem[] }) {
 
 /**
  * 桌面侧边栏（`md` 及以上显示；小屏改走 `AdminMobileNav` 的抽屉）。
- * TODO(后续)：当前页高亮 —— 需要 pathname，Next 16 布局内无稳定 API，留待客户端组件或 proxy 注头。
+ * 当前页高亮由 `AdminNavItem`（`'use client'` + `usePathname()`）负责 —— T3.3 已落地。
  */
 export function AdminSidebar({ items }: { items: readonly AdminMenuItem[] }) {
   return (
