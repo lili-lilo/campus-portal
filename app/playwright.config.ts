@@ -21,6 +21,12 @@ export default defineConfig({
     timezoneId: "Asia/Shanghai",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  /**
+   * ⚠ **跑 E2E 前请先关掉本地 `pnpm dev`**：`reuseExistingServer: true` 会复用 3000 端口上已有的
+   * dev server —— 若刚执行过 `pnpm db:reset`，旧 server 持有的 SQLite 句柄可能仍指向被替换/删除的
+   * 库文件（读到的还是旧数据、写入失败 ⇒ 表现为"点保存草稿不跳转"这类假回归）。
+   * 需要强制新起：先关掉 dev，或让 `E2E_BASE_URL` 指向另一个端口。
+   */
   webServer: {
     command: "pnpm dev",
     url: "http://localhost:3000/main",

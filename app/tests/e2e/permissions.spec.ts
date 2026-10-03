@@ -22,19 +22,46 @@ async function login(page: Page, username: string) {
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/admin\/dashboard/);
+  // 已登录的后台外壳（登录页没有侧边栏 nav）⇒ 证明 cookie 已生效，避免后续 goto 被 302 后
+  // 拿到 200 而误判"页面 gate 没生效"
+  await expect(page.locator('nav[aria-label="后台导航"]')).toBeVisible();
 }
 
 /** 以指定账号新建草稿 → 返回编辑页 URL（同 `audit-workflow.spec.ts` 的 helper） */
 async function createDraft(page: Page, username: string, title: string): Promise<string> {
   await login(page, username);
   await page.goto("/admin/articles/new");
-  await page.selectOption('select[name="channelId"]', { index: 1 });
+
+  // ⚠ 顺序即修复：`selectOption` 必须在 **hydration 之后**做。此前它紧跟 `goto`，
+  //   落在尚未 hydration 的 DOM 上 ⇒ 原生 `change` 事件没有 React 监听 ⇒ DOM 显示已选、
+  //   **RHF state 仍为 `""`** ⇒ zod 只报「请选择栏目」（T4.1c "保存被拦" 的真因）。
+  //   这里先用 Tiptap 打字并断言（客户端组件，等价于 hydration 屏障），再填标题与栏目。
+  //   正文另需 `pressSequentially`：`keyboard.type()` 走 CDP insertText，
+  //   Tiptap 3.x 下不进 ProseMirror 事务 ⇒ `content` 为空串。
+  const editor = page.locator(".ProseMirror");
+  await editor.click();
+  await editor.pressSequentially(`${title}：越权测试正文。`);
+  await expect(editor).toContainText("越权测试正文");
+
   await page.fill('input[name="title"]', title);
 
-  await page.locator(".ProseMirror").click();
-  await page.keyboard.type(`${title}：越权测试正文。`);
+  const channelSelect = page.locator('select[name="channelId"]');
+  await channelSelect.selectOption({ index: 1 }); // index 0 = 「请选择栏目」(value="")
+  await expect(channelSelect).not.toHaveValue("");
 
   await page.getByRole("button", { name: "保存草稿" }).click();
+
+  // 失败自解释：把被拦的真实原因打出来
+  const blocked = page.locator('p[role="alert"], p[data-slot="form-message"]');
+  if (
+    await blocked
+      .first()
+      .isVisible()
+      .catch(() => false)
+  ) {
+    console.log("保存被拦：", await blocked.allInnerTexts(), "url =", page.url());
+  }
+
   await expect(page).toHaveURL(/\/admin\/articles$/);
 
   await page.locator("tbody tr").first().getByRole("link").first().click();
@@ -51,6 +78,29 @@ async function clickWorkflow(page: Page, name: string): Promise<void> {
   const before = await page.locator('[data-slot="audit-item"]').count();
   await page.getByRole("button", { name }).click();
   await expect(page.locator('[data-slot="audit-item"]')).toHaveCount(before + 1);
+}
+
+/**
+ * 断言某路径对**当前角色** 404（gate 生效）。
+ *
+ * ⚠ **不断言 HTTP status**：Next 16 App Router（本仓还有 `proxy.ts` 的 locale 前缀 rewrite）下，
+ * `notFound()` 渲染出的 404 页面 `response.status()` 实测**可能是 200** —— 用户实测证据：
+ * 页面显示「页面不存在」，status 却是 200。⇒ 改断言 **DOM**（`app/src/app/not-found.tsx` L12 的 `<h1>`）。
+ * 未登录时 `goto` 会被 proxy 302 到登录页，此时 DOM 断言同样会失败（登录页没有该标题）✓
+ */
+async function gotoExpect404(page: Page, path: string) {
+  const response = await page.goto(path);
+
+  if (response?.status() !== 404) {
+    console.log(
+      "注：HTTP status =",
+      response?.status(),
+      "（Next 16 下 404 页也可能是 200，故不作断言依据）｜url =",
+      response?.url(),
+    );
+  }
+
+  await expect(page.getByRole("heading", { name: "页面不存在" })).toBeVisible();
 }
 
 test.describe("拦截层（proxy.ts）：未登录保护", () => {
@@ -77,15 +127,18 @@ test.describe("4 角色越权（T4.1b 解除部分 skip：界面无入口）", (
   test("用例 1：editor 在「待终审」稿件上看不到「发布」按钮", async ({ page }) => {
     const editUrl = await createDraft(page, "editor", "越权1 editor 无发布");
 
-    // 推到 pending_final（此时"发布"对 auditor 可见）
-    await clickWorkflow(page, "提交初审");
+    await clickWorkflow(page, "提交初审"); // editor：draft → pending_first
+
+    // auditor 侧：**先**断言它确实在 pending_first（此时按钮是「初审通过 / 退回」，本就没有「发布」），
+    // 再初审通过推到 pending_final —— 只有到这一步，「发布」才对 auditor 可见
     await login(page, "auditor");
     await page.goto(editUrl);
-    await expect(page.getByRole("button", { name: "发布" })).toBeVisible();
+    await expectStatus(page, "待初审");
     await clickWorkflow(page, "初审通过");
     await expectStatus(page, "待终审");
+    await expect(page.getByRole("button", { name: "发布" })).toBeVisible();
 
-    // 换回 editor：能看页面，但没有 article.publish ⇒ 界面无「发布」「退回」
+    // editor 侧：pending_final，但无 `article.publish` ⇒ 界面无「发布」「退回」
     await login(page, "editor");
     await page.goto(editUrl);
     await expectStatus(page, "待终审");
@@ -98,9 +151,8 @@ test.describe("4 角色越权（T4.1b 解除部分 skip：界面无入口）", (
     const othersUrl = await createDraft(page, "site_admin", "越权2 site_admin 的稿件");
 
     await login(page, "editor");
-    const response = await page.goto(othersUrl);
+    await gotoExpect404(page, othersUrl);
 
-    expect(response?.status()).toBe(404);
     await expect(page.locator('[data-slot="article-status"]')).toHaveCount(0);
   });
 
@@ -113,8 +165,7 @@ test.describe("4 角色越权（T4.1b 解除部分 skip：界面无入口）", (
     await expect(page.locator('a[href="/admin/articles"]')).toHaveCount(0);
 
     // ② 页面层 gate（T4.1c 补）：直接输 URL 也被挡 —— docs/15 §9.1 L423 的权限列 = `article.create`
-    const response = await page.goto("/admin/articles/new");
-    expect(response?.status()).toBe(404);
+    await gotoExpect404(page, "/admin/articles/new");
   });
 
   test("用例 5：editor 在「已发布」稿件上看不到「撤稿」按钮", async ({ page }) => {

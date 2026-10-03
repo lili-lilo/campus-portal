@@ -27,6 +27,9 @@ async function login(page: Page, username: string) {
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/admin\/dashboard/);
+  // 再断言"已登录的后台外壳"确实渲染（登录页没有侧边栏 nav）⇒ 证明 cookie 已生效，
+  // 否则后续 `page.goto` 会被 proxy 302 回登录页、`response.status()` 变成 200（伪装成"gate 未生效"）
+  await expect(page.locator('nav[aria-label="后台导航"]')).toBeVisible();
 }
 
 /**
@@ -36,14 +39,38 @@ async function login(page: Page, username: string) {
 async function createDraft(page: Page, username: string, title: string): Promise<string> {
   await login(page, username);
   await page.goto("/admin/articles/new");
-  await page.selectOption('select[name="channelId"]', { index: 1 });
+
+  // ① **hydration 屏障**：先用 Tiptap（客户端组件）打字并断言通过，证明 React 已 hydration。
+  //    ⚠ 在它之前做的 `selectOption` / `fill` 可能落在"尚未 hydration"的 DOM 上 —— 原生
+  //    `change` 事件此时没有 React 监听 ⇒ DOM 有值、**RHF state 仍为空** ⇒ zod 只报
+  //    「请选择栏目」（T4.1c 复盘：真因不是"没选栏目"，而是选得太早）。
+  //    另：正文必须用 `pressSequentially`（逐字符真实键入）；`keyboard.type()` 走 CDP
+  //    `insertText` 注入，Tiptap 3.x 下不进 ProseMirror 事务 ⇒ `content` 为空串。
+  const editor = page.locator(".ProseMirror");
+  await editor.click();
+  await editor.pressSequentially(`${title}：端到端测试正文。`);
+  await expect(editor).toContainText("端到端测试正文");
+
+  // ② hydration 之后再填标题与栏目（此时事件必被 React 收到），并断言栏目**真的**被选中
   await page.fill('input[name="title"]', title);
 
-  // 正文是 Tiptap 非受控编辑器（T3.4）⇒ 用真实键盘输入，别用 fill
-  await page.locator(".ProseMirror").click();
-  await page.keyboard.type(`${title}：端到端测试正文。`);
+  const channelSelect = page.locator('select[name="channelId"]');
+  await channelSelect.selectOption({ index: 1 }); // index 0 = 「请选择栏目」(value="")
+  await expect(channelSelect).not.toHaveValue("");
 
   await page.getByRole("button", { name: "保存草稿" }).click();
+
+  // 失败自解释：被客户端校验 / 服务端拒绝时，把真实原因打出来，别只留一个 URL 超时
+  const blocked = page.locator('p[role="alert"], p[data-slot="form-message"]');
+  if (
+    await blocked
+      .first()
+      .isVisible()
+      .catch(() => false)
+  ) {
+    console.log("保存被拦：", await blocked.allInnerTexts(), "url =", page.url());
+  }
+
   await expect(page).toHaveURL(/\/admin\/articles$/);
 
   await page.locator("tbody tr").first().getByRole("link").first().click();
