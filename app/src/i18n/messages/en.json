@@ -16,7 +16,16 @@
     "breadcrumb": "Breadcrumb",
     "prevPage": "Previous",
     "nextPage": "Next",
-    "gotoPage": "Page {page}"
+    "gotoPage": "Page {page}",
+    "backHome": "Back to home"
+  },
+  "channelNotFound": {
+    "title": "This section is unavailable",
+    "description": "The section you requested has no content. Form-type sections are not rendered on the public site in this release."
+  },
+  "siteNotFound": {
+    "title": "Page not found",
+    "description": "The site or section does not exist, or the content has been taken offline."
   },
   "nav": {
     "home": "Home",

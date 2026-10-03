@@ -16,7 +16,16 @@
     "breadcrumb": "面包屑",
     "prevPage": "上一页",
     "nextPage": "下一页",
-    "gotoPage": "第 {page} 页"
+    "gotoPage": "第 {page} 页",
+    "backHome": "返回首页"
+  },
+  "channelNotFound": {
+    "title": "该栏目不存在或暂未开放",
+    "description": "你访问的栏目没有对应内容。其中「表单型」栏目本期暂不提供前台渲染。"
+  },
+  "siteNotFound": {
+    "title": "页面不存在",
+    "description": "站点或栏目不存在，或该内容已下线。"
   },
   "nav": {
     "home": "首页",
