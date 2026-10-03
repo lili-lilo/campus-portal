@@ -5,9 +5,10 @@ import { expect, test } from "@playwright/test";
  *
  * T1.9 范围（裁决 Q4 变体）：后台登录（T1.8 已就绪）**真跑**。
  * T2.8 Part 1：**解除第 1/2/3/9 步的 `.skip`** —— 第 1/2 步依赖 T2.2+ 首页与 T2.5 详情页，
- *   第 3 步依赖 T2.7 搜索，第 9 步依赖 T2.3 子站模板；**第 4/5/7/8 步仍 `.skip`**
- *   （第 4 步英文切换与第 5 步无障碍断言其实已可跑，本轮按用户指令保持 skip；
- *     第 7/8 步依赖 T3/T4 的后台发稿状态机与 revalidatePath）。
+ *   第 3 步依赖 T2.7 搜索，第 9 步依赖 T2.3 子站模板。
+ * **M5-2b**：**第 4 步（英文切换）解除 `.skip`**（M5-1/M5-1b 的 `nameEn` 系列已就绪）；
+ *   **第 5 步（无障碍）在 `tests/e2e/a11y.spec.ts` 真跑**（5 条），本文件只留骨架占位；
+ *   **第 7/8 步仍 `.skip`**（第 7 步已由 `audit-workflow.spec.ts` 覆盖，第 8 步待第 6 周）。
  *
  * 前置：`pnpm db:reset && pnpm db:seed`（docs/16 §1.3）+ **已安装 Playwright 浏览器**
  *   （`pnpm exec playwright install chromium`，约 150MB —— 见 docs/00 §8 #56，本沙箱不装）。
@@ -183,20 +184,35 @@ test.describe("演示链路 · 第 1/2/3/9 步（T2.8 Part 1 解除 skip）", ()
   });
 });
 
-test.describe.skip("演示链路 · 第 4/5/7/8 步（待 T3/T4 功能就绪）", () => {
-  test("第 4 步：切换英文（URL 变 /en/...）", async () => {
-    // TODO：断言 URL 前缀与导航文案（无需截图）；**功能其实已就绪**，如需要可随时解除 skip
-  });
+test.describe("演示链路 · 第 4 步（M5-2b 解除 skip）", () => {
+  test("第 4 步：切换英文（URL 变 /en/...，导航与站点名显示英文）", async ({ page }) => {
+    await page.goto("/main");
+    // 页头的语言切换链接：zh 站显示 "EN"，en 站显示 "中文"（site-header.tsx）
+    await page.getByRole("link", { name: "EN", exact: true }).click();
+    await expect(page).toHaveURL(/\/en\/main$/);
 
+    // M5-1 / M5-1b 系列：站点名（Site.nameEn）与导航栏（Navigation.nameEn）随 locale 切英文
+    await expect(page.locator("header")).toContainText("XX University");
+    await expect(page.locator("header")).toContainText("News");
+
+    // 切回中文（URL 前缀去掉 ⇒ as-needed）
+    await page.getByRole("link", { name: "中文", exact: true }).click();
+    await expect(page).toHaveURL(/\/main$/);
+    await expect(page.locator("header")).toContainText("XX大学");
+  });
+});
+
+test.describe.skip("演示链路 · 第 5/7/8 步（第 5 步已移入 a11y.spec.ts；7/8 待 M6）", () => {
   test("第 5 步：无障碍字体缩放 / 高对比度（属性断言，降级项）", async () => {
-    // TODO：断言 <html> 的 data-a11y-font / data-a11y-contrast 变化且刷新后保持（docs/16 §2.1 第 5 步）
+    // 已由 `tests/e2e/a11y.spec.ts` 真跑覆盖（5 条：默认 / 5 档 / 对比度 / 刷新保持+SSR 首帧 / 无 script 警告）
+    // 保留本骨架仅为与 docs/16 §2.1 的 9 步编号一一对应
   });
 
   test("第 7 步：新建 → 提交 → 初审 → 终审发布（8 条边）", async () => {
-    // TODO（第 3~4 周）：状态依次 draft → pending_first → pending_final → published；每次流转 AuditRecord +1
+    // 已由 `audit-workflow.spec.ts` 真跑覆盖（边 1/2/3/6/7）；此处保持骨架
   });
 
   test("第 8 步：回前台看到新文章（revalidatePath 生效）", async () => {
-    // TODO（第 4 周）：A25 要求发布后前台立即可见
+    // TODO（第 6 周）：A25 要求发布后前台立即可见
   });
 });

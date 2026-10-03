@@ -1,35 +1,34 @@
 "use client";
 
 /**
- * 无障碍开关（T1.3 Step 3）
+ * 无障碍开关（T1.3 Step 3；M5-2b 起接 i18n）
  * ============================================================================
  * 两个控件：字号缩放 5 档（100/125/150/175/200）+ 高对比度开关。
  *
  * 状态来源：`useSyncExternalStore`（T1.3 裁决 B —— 撤回原先「不用 useSyncExternalStore」那句）
- *   · getServerSnapshot 返回 '100' / 'off' → SSR 与 hydration 首帧一致，无 hydration mismatch
- *   · hydration 后由 store 接管；用户操作走 store 的 setter（写 localStorage + 写属性 + 广播）
+ *   · `getServerSnapshot` 返回 '100' / 'off' → SSR 与 hydration 首帧一致，无 hydration mismatch
+ *   · hydration 后由 store 接管；用户操作走 store 的 setter（**写 cookie** + 写属性 + 广播，M5-2a 起）
  *   · 两个 snapshot 都是原始字符串，不做对象包装（对象每次都是新引用 → 无限渲染）
  *
- * 唯一残留的 effect **不写 React state**，只把 store 的当前快照写回 <html>：
- *   Next 16 随包指南 preventing-flash-before-hydration.md §"Re-applying attributes
- *   in development" 说明 —— dev 下 React Strict Mode 会重挂载一次并把 <html>
- *   重置为 JSX 里的值，内联脚本写入的档位会丢；这个 effect 负责恢复。
- *   注意它读的是 **store 快照**而不是 React 状态：hydration 首帧的状态仍是
- *   server snapshot（'100'/'off'），拿它回写会把内联脚本刚写入的档位覆盖回默认值，
- *   反而制造一次闪烁。
+ * 唯一残留的 effect **不写 React state**，只把 store 的当前快照写回 <html>（幂等同步，
+ * 防御 dev Strict Mode 的重挂载；见 `@/lib/a11y` 的同名函数注释）。
+ *
+ * i18n（M5-2b）：文案走 `useTranslations("accessibility")` —— 本组件是 **Client Component**，
+ *   messages 由 `(site)/[locale]/layout.tsx` 的 `NextIntlClientProvider` 下发。
+ *   ⚠ 因此本组件**只能挂在 `[locale]` 之内**（真实入口：`site-footer.tsx` 的 `<details>`）；
+ *   `/tokens`（`[locale]` 之外）已于 M5-2a 移除本组件。
  */
 
+import { useTranslations } from "next-intl";
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
   applyA11yAttributes,
-  CONTRAST_STATES,
   contrastStore,
   FONT_SCALES,
   fontScaleStore,
   setContrast,
   setFontScale,
-  type ContrastState,
   type FontScale,
 } from "@/lib/a11y";
 
@@ -41,11 +40,6 @@ const FONT_LABELS: Record<FontScale, string> = {
   "200": "200%",
 };
 
-const CONTRAST_LABELS: Record<ContrastState, string> = {
-  on: "已开启",
-  off: "已关闭",
-};
-
 /** 与 shadcn 控件一致的焦点环写法（颜色来自 --ring，不新造样式） */
 const CONTROL_BASE =
   "rounded-btn border px-3 py-1.5 text-sm transition-colors duration-200 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -53,6 +47,8 @@ const CONTROL_ON = "border-primary bg-primary text-primary-foreground";
 const CONTROL_OFF = "border-border bg-card text-foreground hover:bg-surface";
 
 export function A11yToggle() {
+  // M5-2b：文案走 i18n（本组件是 Client Component，provider 在 (site)/[locale]/layout.tsx）
+  const t = useTranslations("accessibility");
   const fontScale = useSyncExternalStore(
     fontScaleStore.subscribe,
     fontScaleStore.getSnapshot,
@@ -76,16 +72,15 @@ export function A11yToggle() {
       className="rounded-card border border-border bg-card p-card shadow-card"
     >
       <h2 id="a11y-toggle-title" className="text-lg font-semibold text-foreground">
-        无障碍开关
+        {t("title")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        设置写入 localStorage，刷新后保持。属性加在 <code>&lt;html&gt;</code> 上：
-        <code> data-a11y-font</code> / <code>data-a11y-contrast</code>。
+        {t.rich("storedHint", { code: (chunks) => <code>{chunks}</code> })}
       </p>
 
       <div className="mt-6">
         <span id="a11y-font-label" className="text-sm font-medium text-foreground">
-          字号缩放
+          {t("fontScale")}
         </span>
         <div role="group" aria-labelledby="a11y-font-label" className="mt-2 flex flex-wrap gap-2">
           {FONT_SCALES.map((scale) => {
@@ -107,7 +102,7 @@ export function A11yToggle() {
 
       <div className="mt-6">
         <span id="a11y-contrast-label" className="text-sm font-medium text-foreground">
-          高对比度
+          {t("contrast")}
         </span>
         <div className="mt-2" role="group" aria-labelledby="a11y-contrast-label">
           <button
@@ -116,15 +111,18 @@ export function A11yToggle() {
             onClick={() => setContrast(contrast === "on" ? "off" : "on")}
             className={`${CONTROL_BASE} ${contrast === "on" ? CONTROL_ON : CONTROL_OFF}`}
           >
-            高对比度：{CONTRAST_LABELS[contrast]}
+            {/* 按钮文案只用 on/off（组标签已在上一行，避免把中文冒号硬编码进 JSX） */}
+            {t(contrast)}
           </button>
         </div>
       </div>
 
-      <p className="mt-4 text-sm text-muted-foreground">
-        当前状态：字号 <strong className="text-foreground">{FONT_LABELS[fontScale]}</strong>
-        ，对比度 <strong className="text-foreground">{CONTRAST_LABELS[contrast]}</strong>
-        （可选值 {CONTRAST_STATES.join(" / ")}）。
+      {/* M5-2b：加 aria-live ⇒ 切换后读屏播报当前档位（A36「ARIA 补齐」） */}
+      <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">
+        {t("currentState", {
+          font: FONT_LABELS[fontScale],
+          contrast: t(contrast),
+        })}
       </p>
     </section>
   );

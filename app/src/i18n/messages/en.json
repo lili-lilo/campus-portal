@@ -95,7 +95,9 @@
     "contrast": "High contrast",
     "on": "On",
     "off": "Off",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "currentState": "Current: font size {font}, contrast {contrast}",
+    "storedHint": "Your choice is stored in a cookie and persists after reload. Attributes are set on <code>&lt;html&gt;</code>: <code>data-a11y-font</code> / <code>data-a11y-contrast</code>."
   },
   "admin": {
     "login": "Sign in",
