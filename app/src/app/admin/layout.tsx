@@ -1,71 +1,49 @@
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
+
+import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
+import { AdminSidebar, getAdminMenu } from "@/components/admin/admin-sidebar";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { auth } from "@/lib/auth";
 
 /**
- * 后台布局（docs/15 §6.1 / §9.1）
+ * 后台布局（改造自 T1.6 骨架，T3.1 / docs/15 §6.1、§9.1）
+ * ============================================================================
+ * 会话校验（T3.1 裁决 1）：
+ *   · `await auth()` 取会话（L1 认证）。
+ *   · **未登录 → 只渲染 children**（保留 T1.6 的约定：`/admin/login` 自己占满屏）。
+ *     本布局**不重定向** —— 重定向由 `src/proxy.ts` 负责（在本布局重定向会把
+ *     `/admin/login` 套进死循环）。
+ *   · `src/proxy.ts` 完全不动（docs/15 §5.3：拦截层只做 cookie 存在性的乐观校验）。
  *
- * 会话判定（U-I 裁决的同一条原则）：**只检查 Auth.js 的会话 cookie 是否存在**，
- * 不 import `@/lib/auth`（避免把 PrismaAdapter/Prisma 拖进构建与后台 bundle）。
- * 未登录时**不在此处重定向** —— 重定向由 `src/proxy.ts` 负责；本布局若重定向，
- * 会把 `/admin/login` 自己套进死循环。
+ * 权限过滤（T3.1 裁决 2）：`getAdminMenu(role)` 走 `src/lib/permissions.ts` 的纯函数，
+ *   零 DB、可在无数据库的单测里断言。**L2 的 DB 版矩阵（UserRole→RolePermission）与
+ *   L3 数据范围属第 4 周 `requirePermission` 的事**，不在本文件。
  *
- * TODO(T1.8)：接 `auth()` 做完整会话校验；TODO(T1.10)：侧边栏按 14 个 `menu.*` 权限码过滤。
+ * 未做（明确留待后续）：
+ *   · 「当前页高亮」—— Next 16 布局内无稳定的 pathname API；
+ *   · 会话过期后的二次跳转 —— 真校验点在每个 Server Action（docs/15 §5.3）。
  */
 export const dynamic = "force-dynamic";
 
-const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"] as const;
-
-type MenuItem = { href: string; label: string; code: string };
-
-const MENU: readonly MenuItem[] = [
-  { href: "/admin/dashboard", label: "仪表盘", code: "menu.dashboard" },
-  { href: "/admin/articles", label: "内容管理", code: "menu.articles" },
-  { href: "/admin/channels", label: "栏目管理", code: "menu.channels" },
-  { href: "/admin/media", label: "媒体库", code: "menu.media" },
-  { href: "/admin/users", label: "用户管理", code: "menu.users" },
-  { href: "/admin/roles", label: "角色权限", code: "menu.roles" },
-  { href: "/admin/sites", label: "站点管理", code: "menu.sites" },
-  { href: "/admin/audits", label: "审核待办", code: "menu.audits" },
-  { href: "/admin/forms", label: "表单管理", code: "menu.forms" },
-  { href: "/admin/comments", label: "评论管理", code: "menu.comments" },
-  { href: "/admin/messages", label: "留言管理", code: "menu.messages" },
-  { href: "/admin/statistics", label: "统计分析", code: "menu.statistics" },
-  { href: "/admin/settings", label: "系统设置", code: "menu.settings" },
-];
-
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const jar = await cookies();
-  const hasSession = SESSION_COOKIE_NAMES.some((name) => Boolean(jar.get(name)?.value));
+  const session = await auth();
 
-  // 未登录：只渲染 children（让 /admin/login 自己占满屏），重定向交给 proxy
-  if (!hasSession) {
+  if (!session) {
     return <>{children}</>;
   }
 
+  const menu = getAdminMenu(session.user.role);
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-        <span className="text-sm font-semibold">XX大学站群 · 后台</span>
-        {/* TODO(T1.8)：显示当前用户 + 退出登录 */}
-        <span className="text-xs text-muted-foreground">已登录（会话校验待 T1.8 接入）</span>
-      </header>
+      <AdminTopbar name={session.user.name ?? session.user.id} role={session.user.role} />
+
+      <AdminMobileNav items={menu} />
 
       <div className="flex flex-1">
-        <aside className="w-56 shrink-0 border-r border-border/60 p-3">
-          <nav className="flex flex-col gap-1 text-sm">
-            {MENU.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </aside>
+        <AdminSidebar items={menu} />
 
-        <main className="flex-1 p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-6">{children}</main>
       </div>
     </div>
   );
