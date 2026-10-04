@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { normalizePage } from "@/components/article-list";
 import { buildHighlights, stripHtml, type SearchHighlights } from "@/components/search-highlight";
+import { Prisma } from "@/generated/prisma/client";
 import { failResponse } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 
@@ -77,7 +78,12 @@ export async function GET(request: Request) {
     ...(channelSlug ? { channel: { slug: channelSlug } } : {}),
     AND: [
       { OR: [{ publishTime: null }, { publishTime: { lte: now } }] },
-      { OR: [{ title: { contains: query } }, { content: { contains: query } }] },
+      {
+        OR: [
+          { title: { contains: query, mode: Prisma.QueryMode.insensitive } },
+          { content: { contains: query, mode: Prisma.QueryMode.insensitive } },
+        ],
+      },
     ],
   };
 

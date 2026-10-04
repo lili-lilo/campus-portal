@@ -4,7 +4,7 @@ import type { MetadataRoute } from "next";
  * /sitemap.xml（docs/15 §7.1 / A23）
  *
  * T1.6 为骨架：站点与路径用临时常量拼装，**构建期不加载 Prisma**
- *（MetadataRoute 默认在构建时执行；DSH 侧 node 与 better-sqlite3 的 ABI 不匹配）。
+ *（MetadataRoute 默认在构建时执行；DSH 侧没有可用的 PostgreSQL 服务）。
  * TODO(T1.10)：改为查 Site(status=true) → Channel(status=true, type≠form) →
  *   Article(status='published', deletedAt=null) + Page(status='published')，
  *   并按 docs/15 §7.1 的 changeFrequency 规则（首页 daily / 列表 daily / 详情 weekly / 单页 monthly）。

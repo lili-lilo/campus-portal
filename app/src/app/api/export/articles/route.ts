@@ -1,5 +1,6 @@
 import * as ExcelJS from "exceljs";
 
+import { Prisma } from "@/generated/prisma/client";
 import { requireSession } from "@/lib/actions-shared";
 import { dateKeyOf, formatTableDate } from "@/lib/date";
 import { MAX_EXPORT_ROWS, buildXlsxResponse, failResponse } from "@/lib/excel";
@@ -91,7 +92,12 @@ export async function GET(request: Request): Promise<Response> {
     ...(channelId ? { channelId } : {}),
     ...(status ? { status } : {}),
     ...(keyword
-      ? { OR: [{ title: { contains: keyword } }, { summary: { contains: keyword } }] }
+      ? {
+          OR: [
+            { title: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
+            { summary: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
+          ],
+        }
       : {}),
   };
 

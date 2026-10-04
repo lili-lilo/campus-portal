@@ -12,7 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
  * · 删除是 `<form action={serverAction}>`：**没有 `window.confirm`**（媒体软删可恢复，属日常管理）
  * · 落盘位置：`app/public/uploads/other/<yyyyMM>/<uuid>-<文件名>`（该目录已 gitignore）
  *
- * ⚠ 前置：`pnpm db:reset && pnpm db:seed`
+ * ⚠ 前置：`$env:ALLOW_DB_RESET="1"; pnpm db:reset; pnpm db:seed`
  */
 
 const PASSWORD = "admin123";

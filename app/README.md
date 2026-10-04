@@ -34,7 +34,7 @@ pnpm dev        # http://localhost:3000
 
 打开 <http://localhost:3000> 会 302 到 `/main`（主站首页）；后台入口 <http://localhost:3000/admin>。
 
-> 重复开发时不必再跑 `db:setup`：改 schema 用 `pnpm db:migrate`，重置数据用 `pnpm db:reset && pnpm db:seed`。
+> 重复开发时不必再跑 `db:setup`：改 schema 用 `pnpm db:push`，重置数据用 `ALLOW_DB_RESET=1 pnpm db:reset` + `pnpm db:seed`。
 
 ## 演示账号
 
@@ -70,8 +70,8 @@ pnpm dev        # http://localhost:3000
 |---|---|
 | `pnpm dev` / `pnpm build` / `pnpm start` | 开发 / 生产构建 / 生产启动 |
 | `pnpm lint` / `pnpm typecheck` | ESLint / `next typegen && tsc --noEmit` |
-| `pnpm db:setup` | `db:migrate` + `db:seed`（首次初始化） |
-| `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:reset` | 迁移 / 幂等种子（可重复执行）/ 重置 |
+| `pnpm db:setup` | `db:push` + `db:seed`（首次初始化） |
+| `pnpm db:push` / `pnpm db:seed` / `pnpm db:reset` | 同步 schema / 幂等种子（可重复执行）/ 重置（需 `ALLOW_DB_RESET=1`） |
 | `pnpm test` / `pnpm test:watch` / `pnpm test:e2e` | Vitest / 监听 / Playwright（T1.9 落地） |
 | `pnpm format` | Prettier 格式化 |
 
@@ -97,7 +97,7 @@ app/
 
 - **Auth.js v5 仍为 beta**（`5.0.0-beta.32`，官方长期无 stable 版本）→ 升级前必须回归登录与权限链路。
 - **构建期依赖外网**：根布局用 `next/font/google` 取 Geist，若 Turbopack 抓取 `fonts.gstatic.com` 超时，`pnpm build` 会**直接失败**（离线环境/CI 需注意；计划第 6 周改为 `next/font/local` 自托管）。
-- **本地库是 SQLite 单文件**（`prisma/dev.db`）；切生产 PostgreSQL 需改 `schema.prisma` 的 `datasource.provider` 并重跑迁移。
+- **本地与生产共用 Supabase PostgreSQL**（方案 A，M6 Step 4b）：`DATABASE_URL` 走 pooler（6543，运行时）、`DIRECT_URL` 走直连（5432，Prisma CLI）；建表用 `pnpm db:push`，`pnpm db:reset` 带 `ALLOW_DB_RESET=1` 安全门。
 - 渲染策略：前台内容页走 **ISR**（`revalidate` 300/3600），搜索页 SSR，后台全部 **SSR**。
 - 后台页面的数据接入为骨架占位（Server Action 于后续批次落地），当前展示占位文案。
 

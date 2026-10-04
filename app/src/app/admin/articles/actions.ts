@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { Prisma } from "@/generated/prisma/client";
 import { routing } from "@/i18n/routing";
 import {
   DEFAULT_PAGE_SIZE,
@@ -228,7 +229,12 @@ export async function listArticles(
     ...(input.channelId ? { channelId: input.channelId } : {}),
     ...(status ? { status } : {}),
     ...(keyword
-      ? { OR: [{ title: { contains: keyword } }, { summary: { contains: keyword } }] }
+      ? {
+          OR: [
+            { title: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
+            { summary: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
+          ],
+        }
       : {}),
   };
 

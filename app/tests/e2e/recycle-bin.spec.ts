@@ -13,7 +13,7 @@ import { expect, test, type Page } from "@playwright/test";
  * · 第 4 步的 `Attachment` 级联**不直接断言** —— 由 `schema.prisma` L312 的 `onDelete: Cascade`
  *   保证，按 `docs/16` §2.3 的 D-2 模式（见 §2.4 范围注）
  *
- * ⚠ 前置：`pnpm db:reset && pnpm db:seed`
+ * ⚠ 前置：`$env:ALLOW_DB_RESET="1"; pnpm db:reset; pnpm db:seed`
  */
 
 const PASSWORD = "admin123";

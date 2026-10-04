@@ -35,7 +35,7 @@
 
 import bcrypt from "bcryptjs";
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 // T1.9：保留 slug 规则与 dateKey 的**唯一实现**已抽到 src/lib，seed 只做调用方。
@@ -85,8 +85,9 @@ function count(model: string, n: number): void {
 // Prisma 客户端（Prisma 7：从生成路径导入 + 显式传驱动适配器）
 // ---------------------------------------------------------------------------
 
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+// seed 是一次性脚本：走**直连**串更稳（pooler 不支持会话级操作，见 docs/11 A31）
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "",
 });
 
 const prisma = new PrismaClient({ adapter });

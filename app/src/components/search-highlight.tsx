@@ -10,7 +10,7 @@ import { cn } from "cn";
  *   前端拿到的是"已安全的富文本片段"。
  *
  * ⚠ 本文件**刻意不 import `@/lib/prisma`**：它要能被 Vitest 组件测试直接导入
- *   （DSH 侧 better-sqlite3 的 ABI 与 Node 24 不符，一旦在导入期实例化 Prisma 就会崩）。
+ *   （DSH 侧没有 PostgreSQL 服务，一旦在导入期实例化 Prisma 客户端就会崩）。
  *   数据查询放在 `src/app/api/search/route.ts`；将来若把查询抽到 `src/lib/search.ts`，
  *   本文件仍应保持"纯展示 + 纯函数"。
  */

@@ -17,7 +17,7 @@ import { expect, test, type Page } from "@playwright/test";
  * 选择器全部与语言无关：控件用 `aria-labelledby` 的固定 id（`a11y-font-label` /
  * `a11y-contrast-label`），字号按钮文案是 `100%`…`200%`（不翻译）。
  *
- * ⚠ 前置：`pnpm db:reset && pnpm db:seed`；且偏好写在 **cookie（context 级）** ⇒ 每条测试先清 cookie。
+ * ⚠ 前置：`$env:ALLOW_DB_RESET="1"; pnpm db:reset; pnpm db:seed`；且偏好写在 **cookie（context 级）** ⇒ 每条测试先清 cookie。
  */
 
 const FONT_SCALES = ["100", "125", "150", "175", "200"] as const;

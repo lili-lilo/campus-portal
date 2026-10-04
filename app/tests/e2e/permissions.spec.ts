@@ -10,7 +10,7 @@ import { expect, test, type Page } from "@playwright/test";
  *     的 L2 矩阵覆盖。本文件负责"界面无入口"这一半。
  * · **仍 `.skip`**：用例 4（`site_admin` 跨站）—— 属 M4 后段，需要第二站点的固定数据
  *
- * ⚠ 前置：`pnpm db:reset && pnpm db:seed`；账号切换用 `login()`（先清 cookie）。
+ * ⚠ 前置：`$env:ALLOW_DB_RESET="1"; pnpm db:reset; pnpm db:seed`；账号切换用 `login()`（先清 cookie）。
  */
 
 const PASSWORD = "admin123";

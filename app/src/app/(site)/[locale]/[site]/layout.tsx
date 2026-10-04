@@ -16,7 +16,7 @@ import { getSiteContext } from "@/lib/site-context";
  *
  * 渲染策略（实测依据：T1.7 的 `[site]/page.tsx` 同样写 `revalidate = 300`，构建产物里该路由为 `ƒ`）：
  *   · `[site]` 段**没有** `generateStaticParams` → 路由**按需动态渲染 + 300s ISR 缓存**
- *   · 因此**构建期不会执行 Prisma 查询**（DSH/CI 的 better-sqlite3 ABI 差异不会影响 `next build`）
+ *   · 因此**构建期不会执行 Prisma 查询**（DSH/CI 没有 PostgreSQL 服务，不影响 `next build`）
  *   · 本轮的 `revalidate` 只表达"发稿后 5 分钟内可见"的缓存意图（A25），与 `docs/15` §6 的分档一致
  */
 export const revalidate = 300;

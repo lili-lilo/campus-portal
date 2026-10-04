@@ -4,10 +4,10 @@ import { describe, expect, it } from "vitest";
  * seed 幂等（docs/16 §2.5 / docs/10 §12）+ 密码哈希（docs/16 §2.5）
  *
  * ⚠ **仅在 CI 执行**（裁决 Q5）：
- *   · 本用例需要**真实 SQLite**（临时 `DATABASE_URL=file:./test.db`）→ 会实例化 Prisma 的
- *     better-sqlite3 适配器，在 DSH（node 24 ↔ ABI 127 的产物）下**无法加载**；
- *   · 因此用 `describe.skipIf(!isCI)` 守卫：本地/DSH 一律 skip，CI（Node 24 + ubuntu 预编译包）执行。
- *   · 退出条款（docs/16 §6 T5）：若 CI 上 `better-sqlite3` 原生模块失败 → 本用例降级为本地专用并回写文档。
+ *   · 本用例需要**真实 PostgreSQL**（CI 的 `postgres:16` service 容器，见 `.github/workflows/ci.yml`）；
+ *     DSH / 本地开发机**没有 PG 服务** ⇒ 无法执行（M6 Step 4b 起已不再使用 SQLite）。
+ *   · 因此用 `describe.skipIf(!isCI)` 守卫：本地/DSH 一律 skip，CI 执行。
+ *   · 退出条款（docs/16 §6 T5）：若 CI 上 PG service 不可用 → 本用例降级为本地专用并回写文档。
  *
  * 重要实现细节：**不能**在文件顶层 `import "@/lib/prisma"` —— 那样在 DSH 下即使 skip 也会因
  * 模块顶层实例化适配器而失败；Prisma 只在用例体内动态 import。
@@ -28,14 +28,14 @@ async function runSeed(): Promise<void> {
   });
 }
 
-describe.skipIf(!isCI)("seed-idempotency（CI 专用：真实 SQLite + 两次 db:seed）", () => {
+describe.skipIf(!isCI)("seed-idempotency（CI 专用：真实 PostgreSQL + 两次 db:seed）", () => {
   it("连跑两次 db:seed：各关键表行数与关键字段完全一致", async () => {
     const { execFileSync } = await import("node:child_process");
     const { prisma } = await import("@/lib/prisma");
 
     try {
-      // 1) 在临时 test.db 上建表（CI 的 DATABASE_URL 指向 file:./test.db）
-      execFileSync("pnpm", ["prisma", "migrate", "deploy"], {
+      // 1) 建表（CI 用 postgres:16 service；无 migrations ⇒ db push 幂等）
+      execFileSync("pnpm", ["prisma", "db", "push"], {
         cwd: process.cwd(),
         stdio: "pipe",
         env: process.env,

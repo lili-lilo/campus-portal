@@ -17,9 +17,8 @@ generator client {
 }
 
 datasource db {
-  // 开发 sqlite / 生产 postgresql。切换 provider 需改这一行并重跑 migrate。
-  provider = "sqlite"
-  // url / directUrl / shadowDatabaseUrl 已迁至 prisma.config.ts（Prisma 7）
+  // 生产与本地共用 PostgreSQL（Supabase）。SQLite 双轨已废弃。
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------------------

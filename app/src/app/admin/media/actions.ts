@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@/generated/prisma/client";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -89,7 +90,7 @@ export async function listMedia(
     ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}),
     ...(input.folder ? { folder: input.folder } : {}),
     ...(input.type ? { type: input.type } : {}),
-    ...(keyword ? { name: { contains: keyword } } : {}),
+    ...(keyword ? { name: { contains: keyword, mode: Prisma.QueryMode.insensitive } } : {}),
   };
 
   const [rows, total] = await prisma.$transaction([

@@ -17,7 +17,7 @@ import { prisma } from "@/lib/prisma";
  *      （T2.3 起）会多次需要同一份数据，`cache()` 保证一次请求只查一遍库。
  *
  * ⚠ 本文件**不得**在构建期被调用：`[site]` 段没有 `generateStaticParams`，路由是
- *   动态按需渲染 + `revalidate` 缓存，故构建期不触碰数据库（DSH 侧 better-sqlite3 ABI 不符）。
+ *   动态按需渲染 + `revalidate` 缓存，故构建期不触碰数据库（DSH 侧没有 PostgreSQL 服务）。
  */
 
 /** 导航树节点（由 `Navigation` 构建） */

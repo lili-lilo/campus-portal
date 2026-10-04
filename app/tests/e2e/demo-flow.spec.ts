@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/test";
  *   **第 5 步（无障碍）在 `tests/e2e/a11y.spec.ts` 真跑**（5 条），本文件只留骨架占位；
  *   **第 7/8 步仍 `.skip`**（第 7 步已由 `audit-workflow.spec.ts` 覆盖，第 8 步待第 6 周）。
  *
- * 前置：`pnpm db:reset && pnpm db:seed`（docs/16 §1.3）+ **已安装 Playwright 浏览器**
+ * 前置：`$env:ALLOW_DB_RESET="1"; pnpm db:reset; pnpm db:seed`（docs/16 §1.3）+ **已安装 Playwright 浏览器**
  *   （`pnpm exec playwright install chromium`，约 150MB —— 见 docs/00 §8 #56，本沙箱不装）。
  *
  * ⚠ **T2.8 Part 2 选择器三坑**（首轮 3 个失败全部源于此，已修）：

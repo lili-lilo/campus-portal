@@ -39,14 +39,14 @@
  * ----------------------------------------------------------------------------
  *   本文件只管 CLI 侧（generate / migrate / db seed）。
  *   应用运行时（Next.js 进程）**不使用**本文件，而是：
- *     - 开发：@prisma/adapter-better-sqlite3 + DATABASE_URL
- *     - 生产：@prisma/adapter-pg           + DATABASE_URL（Supabase pooler 连接串）
+ *   本地与生产**统一**走 Supabase PostgreSQL（方案 A，M6 Step 4b）：
+ *     - 运行时：`@prisma/adapter-pg` + `DATABASE_URL`（Supabase pooler 连接串，见 src/lib/prisma.ts）
  *   原因：Prisma 7 起，Client 构造必须显式传入驱动适配器。
  *
  * 四、.env 的加载方式（已定：方案 A）
  * ----------------------------------------------------------------------------
  *   Next.js 自身的 .env 加载**不覆盖** Prisma CLI 进程，
- *   所以直接运行 `pnpm db:migrate` 时不会自动读到 .env。
+ *   所以直接运行 `pnpm db:push` / `pnpm db:seed` 时不会自动读到 .env。
  *   故显式引入 dotenv（已作为 devDependency 安装）。
  * ============================================================================
  */
@@ -75,18 +75,16 @@ export default defineConfig({
    * （@prisma/config dist/index.js L515-521：if (!value) throw new PrismaConfigEnvError(name)），
    * 属 fail-fast，优于静默 undefined。
    *
-   * 环境变量取值（见 app/.env）：
-   *   开发（SQLite）  ： DATABASE_URL="file:./prisma/dev.db"
-   *                     —— 相对 **prisma.config.ts 所在目录**（本项目为 app/）解析，即 app/prisma/dev.db
-   *   生产（Postgres）： Supabase **直连**串（不走 pooler）
-   *                     —— 因为 pooler 不支持迁移所需的会话级操作（见 docs/11 A31）
+   * 环境变量取值（见 app/.env.example；方案 A：本地与生产共用 Supabase PG）：
+   *   DIRECT_URL   ： Supabase **直连/session** 串（端口 5432）—— **本文件（Prisma CLI）使用**
+   *                  —— 因为 pooler 不支持迁移/推送所需的会话级操作（见 docs/11 A31）
+   *   DATABASE_URL ： pooler 串（端口 6543）—— 运行时 Client 使用，见 src/lib/prisma.ts
    */
   datasource: {
-    url: env("DATABASE_URL"),
-
-    // 影子库：仅 `prisma migrate dev` 在需要重建 schema 时使用。
-    // SQLite 本地开发不需要（Prisma 会自动用临时文件），故保持注释。
-    // shadowDatabaseUrl: env("SHADOW_DATABASE_URL"),
+    // CLI（generate / db push / db seed 的首次连接）走直连串。
+    // 运行时 Client 的连接由 src/lib/prisma.ts 的 pg 适配器用 DATABASE_URL 负责。
+    // 原因：Supabase pooler 不支持会话级操作（见 docs/11 A31）。
+    url: env("DIRECT_URL"),
   },
 
   /**

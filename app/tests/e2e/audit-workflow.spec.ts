@@ -9,7 +9,7 @@ import { expect, test, type Page } from "@playwright/test";
  * · 每篇稿件由 **editor 现场新建**：保证 C4 的"本人稿件"成立（否则边 1/7 会被 FORBIDDEN 挡）
  * · 断言锚点：`[data-slot="article-status"]`（编辑页徽标）、`[data-slot="audit-item"]`（C1 计数）
  *
- * ⚠ 前置：`pnpm db:reset && pnpm db:seed`（同 `playwright.config.ts` 注释）；slug 由表单自动派生
+ * ⚠ 前置：`$env:ALLOW_DB_RESET="1"; pnpm db:reset; pnpm db:seed`（同 `playwright.config.ts` 注释）；slug 由表单自动派生
  *   （`article-{yyyyMMddHHmmss}`，秒级），用例串行执行故不会撞 `@@unique([siteId, slug])`。
  */
 
