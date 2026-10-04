@@ -1252,6 +1252,15 @@ async function seedAuditRecords(
   count("AuditRecord", n);
 }
 
+/** 媒体库素材名（替换原占位「种子素材 N（folder）」——首页轮播会把 name 直接叠字显示） */
+const MEDIA_NAME_BY_FOLDER: Record<(typeof MEDIA_FOLDERS)[number], string> = {
+  carousel: "明德大学校园风光",
+  dept: "明德大学院系风采",
+  leader: "明德大学师资风采",
+  news: "明德大学新闻图片",
+  other: "明德大学校园生活",
+};
+
 async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
   // Media.path 无唯一索引（规格的 upsert 键用不了）→ 固定 id（见文件头裁决 B）
   const total = 50;
@@ -1260,8 +1269,15 @@ async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
   for (let i = 1; i <= total; i += 1) {
     const id = `seed-media-${i}`;
     const folder = pick(MEDIA_FOLDERS, i - 1);
-    const type = i % 17 === 0 ? "video" : i % 23 === 0 ? "file" : "image";
+    // carousel 是首页 Hero 的图源：**强制 image**。
+    // 否则 i=46 会同时命中 carousel 与 `i % 23 === 0`（file）⇒ 产出 /uploads/seed/carousel/file-046.pdf，
+    // 而 Hero 取 createdAt 最新的 5 条 ⇒ 第 1 张恒为破图（走渐变兜底）。
+    const type =
+      folder === "carousel" ? "image" : i % 17 === 0 ? "video" : i % 23 === 0 ? "file" : "image";
     const path = `/uploads/seed/${folder}/${type}-${String(i).padStart(3, "0")}.${type === "video" ? "mp4" : type === "file" ? "pdf" : "jpg"}`;
+    // 同一 folder 内的序号（01~10），用于「明德大学校园风光 01」这类可读素材名
+    const ordinal = String(Math.floor((i - 1) / MEDIA_FOLDERS.length) + 1).padStart(2, "0");
+    const name = `${MEDIA_NAME_BY_FOLDER[folder]} ${ordinal}`;
     const siteSlug = i % 5 === 0 ? null : pick(["main", "main", "cs", "ee", "ba"], i);
     const siteId = siteSlug ? (siteIds.get(siteSlug) ?? null) : null;
 
@@ -1271,7 +1287,7 @@ async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
         id,
         siteId,
         type,
-        name: `种子素材 ${i}（${folder}）`,
+        name,
         path,
         size: 80_000 + (hash32(path) % 900_000),
         mimeType:
@@ -1288,7 +1304,7 @@ async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
       update: {
         siteId,
         type,
-        name: `种子素材 ${i}（${folder}）`,
+        name,
         size: 80_000 + (hash32(path) % 900_000),
         mimeType:
           type === "video" ? "video/mp4" : type === "file" ? "application/pdf" : "image/jpeg",
