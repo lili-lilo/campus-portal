@@ -1,6 +1,8 @@
 import * as ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
+import { contentDisposition } from "@/lib/content-disposition";
+
 /**
  * Excel 导出公共层（M5-5a / `docs/14` §6.2 L628-L632）
  * ============================================================================
@@ -28,20 +30,8 @@ export const MAX_EXPORT_ROWS = 10_000;
 /** `.xlsx` 官方 MIME（Office Open XML） */
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-/**
- * RFC 6266 / 5987 双形式 `Content-Disposition`。
- *
- * ⚠ `Headers` 的值必须是 **ByteString**（含非 ASCII 会抛 `TypeError: Invalid character in header`）
- * ⇒ 中文名只能放 `filename*=UTF-8''<percent-encoded>`，并额外转义 RFC 5987 的保留字符 `'()` `*`；
- * `filename=` 给**纯 ASCII 回退**（老客户端 / 下载工具）。
- */
-function contentDisposition(filename: string, asciiFallback: string): string {
-  const encoded = encodeURIComponent(filename).replace(
-    /['()*]/g,
-    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
-}
+/** M6 Step 2b 起转发导出；实现与 ByteString 约束见 @/lib/content-disposition.ts */
+export { contentDisposition };
 
 /**
  * 把构造好的 workbook 变成 `.xlsx` 下载响应。
