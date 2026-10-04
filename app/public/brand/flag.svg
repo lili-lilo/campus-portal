@@ -1,0 +1,83 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 1200 800"
+  width="1200"
+  height="800"
+  role="img"
+  aria-labelledby="mdFlagTitle"
+  shape-rendering="geometricPrecision"
+>
+  <title id="mdFlagTitle">明德大学校旗</title>
+
+  <defs>
+    <path id="mdFlagRingTop" d="M 20,128 A 108,108 0 0 1 236,128" fill="none" />
+    <path id="mdFlagRingBottom" d="M 12,128 A 116,116 0 0 0 244,128" fill="none" />
+    <style>
+      .md-cn {
+        font-family:
+          "Songti SC", "STSong", "SimSun", "Noto Serif SC", "Source Han Serif SC", serif;
+        font-weight: 600;
+      }
+      .md-en {
+        font-family: "Times New Roman", "Source Serif 4", "Liberation Serif", serif;
+        font-weight: 500;
+      }
+    </style>
+  </defs>
+
+  <!-- 旗面：深藏青（3:2 = 1200×800） -->
+  <rect width="1200" height="800" fill="#0b2d5e" />
+
+  <!-- 左上角：校名（金） -->
+  <text class="md-cn" x="72" y="106" fill="#c9a961" font-size="54" letter-spacing="6">
+    明德大学
+  </text>
+  <text class="md-en" x="75" y="148" fill="#c9a961" font-size="24" letter-spacing="5.5">
+    MINGDE UNIVERSITY
+  </text>
+
+  <!-- 中央校徽：与 logo.svg 同构（自包含内联，缩放 1.6406，中心落在 600,420） -->
+  <g transform="translate(390,210) scale(1.6406)">
+    <circle cx="128" cy="128" r="124" fill="none" stroke="#c9a961" stroke-width="3" />
+    <circle cx="128" cy="128" r="100" fill="none" stroke="#c9a961" stroke-width="1.6" />
+
+    <text class="md-cn" fill="#c9a961" font-size="20" letter-spacing="8" text-anchor="middle">
+      <textPath xlink:href="#mdFlagRingTop" href="#mdFlagRingTop" startOffset="50%"
+        >明德大学</textPath
+      >
+    </text>
+    <text class="md-en" fill="#c9a961" font-size="11.5" letter-spacing="1.6" text-anchor="middle">
+      <textPath xlink:href="#mdFlagRingBottom" href="#mdFlagRingBottom" startOffset="50%"
+        >MINGDE UNIVERSITY · 1923</textPath
+      >
+    </text>
+    <circle cx="16" cy="128" r="2.4" fill="#c9a961" />
+    <circle cx="240" cy="128" r="2.4" fill="#c9a961" />
+
+    <g fill="#c9a961">
+      <path d="M 128,66 A 62,62 0 0 0 70.84,104 H 128 Z" />
+      <path d="M 128,110 H 68.67 A 62,62 0 0 0 68.67,146 H 128 Z" />
+      <path d="M 128,152 H 70.84 A 62,62 0 0 0 128,190 Z" />
+      <path d="M 128,66 A 62,62 0 0 1 128,190 A 76,76 0 0 0 128,66 Z" />
+    </g>
+
+    <g stroke="#c9a961" stroke-width="3.2" stroke-linecap="round">
+      <line x1="94" y1="186.9" x2="88" y2="197.3" />
+      <line x1="69.11" y1="162" x2="58.72" y2="168" />
+      <line x1="60" y1="128" x2="48" y2="128" />
+      <line x1="69.11" y1="94" x2="58.72" y2="88" />
+      <line x1="94" y1="69.11" x2="88" y2="58.72" />
+    </g>
+
+    <circle
+      cx="128"
+      cy="128"
+      r="84"
+      fill="none"
+      stroke="#c9a961"
+      stroke-width="1.2"
+      opacity="0.7"
+    />
+  </g>
+</svg>

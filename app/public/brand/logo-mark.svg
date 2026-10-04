@@ -1,0 +1,37 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 256 256"
+  width="256"
+  height="256"
+  role="img"
+  aria-labelledby="mdMarkTitle"
+  color="#0b2d5e"
+  shape-rendering="geometricPrecision"
+>
+  <title id="mdMarkTitle">明德大学标识（日月）</title>
+  <!--
+    单色版：去外环、去文字，只留「日月」图形。
+    · 全部图形用 `currentColor` ⇒ 导航栏里可用 CSS 改色（如 text-white）；
+      本文件已把根元素的 color 设为品牌深藏青 #0b2d5e，单独打开即呈现深藏青。
+    · 背景透明 ⇒ 适合 favicon 生成（16×16 仍可辨认：三段半圆横带 + 弯月）。
+    · 图形按原始包围盒（x 46.4–161.7 / y 57.1–198.9）放大 1.41 并居中到 256×256。
+  -->
+  <g transform="translate(128,128) scale(1.41) translate(-104.05,-128)">
+    <!-- 日：左半圆三段横带（r=62） -->
+    <g fill="currentColor">
+      <path d="M 128,66 A 62,62 0 0 0 70.84,104 H 128 Z" />
+      <path d="M 128,110 H 68.67 A 62,62 0 0 0 68.67,146 H 128 Z" />
+      <path d="M 128,152 H 70.84 A 62,62 0 0 0 128,190 Z" />
+      <!-- 月：右弯月（外弧 r=62 + 内弧 r=76） -->
+      <path d="M 128,66 A 62,62 0 0 1 128,190 A 76,76 0 0 0 128,66 Z" />
+    </g>
+    <!-- 日的光芒：左外侧 5 条（小尺寸下略粗，保证 favicon 可辨） -->
+    <g stroke="currentColor" stroke-width="4.4" stroke-linecap="round">
+      <line x1="94" y1="186.9" x2="88" y2="197.3" />
+      <line x1="69.11" y1="162" x2="58.72" y2="168" />
+      <line x1="60" y1="128" x2="48" y2="128" />
+      <line x1="69.11" y1="94" x2="58.72" y2="88" />
+      <line x1="94" y1="69.11" x2="88" y2="58.72" />
+    </g>
+  </g>
+</svg>

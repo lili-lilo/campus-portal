@@ -1,0 +1,86 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 256 256"
+  width="256"
+  height="256"
+  role="img"
+  aria-labelledby="mdLogoTitle mdLogoDesc"
+  shape-rendering="geometricPrecision"
+>
+  <title id="mdLogoTitle">明德大学校徽</title>
+  <desc id="mdLogoDesc">
+    深藏青圆底 + 金色外环；内圈为「日（左半圆三横带 + 放射线）」与「月（右弯月）」共构的「明」字意象；
+    外环上为「明德大学」，下为「MINGDE UNIVERSITY · 1923」。
+  </desc>
+
+  <defs>
+    <!-- 外环文字弧：
+         上弧 r=108 从左侧经顶部到右侧（sweep=1，顺时针）→ 文字正立于顶部；
+         下弧 r=116 从左侧经底部到右侧（sweep=0，逆时针）→ 文字在底部正立（呈"微笑"弧）。
+         下弧半径略大于上弧：底部文字的"字身朝圆心"，需外移以免字头压到内环。 -->
+    <path id="mdRingTop" d="M 20,128 A 108,108 0 0 1 236,128" fill="none" />
+    <path id="mdRingBottom" d="M 12,128 A 116,116 0 0 0 244,128" fill="none" />
+
+    <style>
+      /* 衬线取中文宋体栈（免费可商用：Noto Serif SC / 思源宋体；系统回退 Songti SC / SimSun） */
+      .md-cn {
+        font-family:
+          "Songti SC", "STSong", "SimSun", "Noto Serif SC", "Source Han Serif SC", serif;
+        font-weight: 600;
+      }
+      .md-en {
+        font-family: "Times New Roman", "Source Serif 4", "Liberation Serif", serif;
+        font-weight: 500;
+      }
+    </style>
+  </defs>
+
+  <!-- ① 底盘 + 双环 -->
+  <circle cx="128" cy="128" r="124" fill="#0b2d5e" />
+  <circle cx="128" cy="128" r="124" fill="none" stroke="#c9a961" stroke-width="3" />
+  <circle cx="128" cy="128" r="100" fill="none" stroke="#c9a961" stroke-width="1.6" />
+
+  <!-- ② 外环文字（金色） -->
+  <text class="md-cn" fill="#c9a961" font-size="20" letter-spacing="8" text-anchor="middle">
+    <textPath xlink:href="#mdRingTop" href="#mdRingTop" startOffset="50%">明德大学</textPath>
+  </text>
+  <text class="md-en" fill="#c9a961" font-size="11.5" letter-spacing="1.6" text-anchor="middle">
+    <textPath xlink:href="#mdRingBottom" href="#mdRingBottom" startOffset="50%"
+      >MINGDE UNIVERSITY · 1923</textPath
+    >
+  </text>
+  <!-- 左右分隔点（经典徽章细节，同时遮住上下两段文字的接缝） -->
+  <circle cx="16" cy="128" r="2.4" fill="#c9a961" />
+  <circle cx="240" cy="128" r="2.4" fill="#c9a961" />
+
+  <!-- ③ 内圈主体：日 + 月（共用 r=62 的圆，被中轴一分为二） -->
+  <g fill="#c9a961">
+    <!-- 日：左半圆的三段横带（带间留空 ⇒ 负空间形成"日"的三横） -->
+    <path d="M 128,66 A 62,62 0 0 0 70.84,104 H 128 Z" />
+    <path d="M 128,110 H 68.67 A 62,62 0 0 0 68.67,146 H 128 Z" />
+    <path d="M 128,152 H 70.84 A 62,62 0 0 0 128,190 Z" />
+    <!-- 月：外弧 r=62（右半圆）+ 内弧 r=76（向右鼓出）⇒ 标准弯月，尖角与"日"的上下端重合 -->
+    <path d="M 128,66 A 62,62 0 0 1 128,190 A 76,76 0 0 0 128,66 Z" />
+  </g>
+
+  <!-- ④ 日的光芒：左外侧 5 条（120°/150°/180°/210°/240°，r 68→80） -->
+  <g stroke="#c9a961" stroke-width="3.2" stroke-linecap="round">
+    <line x1="94" y1="186.9" x2="88" y2="197.3" />
+    <line x1="69.11" y1="162" x2="58.72" y2="168" />
+    <line x1="60" y1="128" x2="48" y2="128" />
+    <line x1="69.11" y1="94" x2="58.72" y2="88" />
+    <line x1="94" y1="69.11" x2="88" y2="58.72" />
+  </g>
+
+  <!-- ⑤ 内圈细环：把日月"框"进徽章（半径 84 > 光芒末端 80，互不遮挡） -->
+  <circle
+    cx="128"
+    cy="128"
+    r="84"
+    fill="none"
+    stroke="#c9a961"
+    stroke-width="1.2"
+    opacity="0.7"
+  />
+</svg>
