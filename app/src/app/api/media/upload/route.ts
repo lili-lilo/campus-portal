@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/actions-shared";
+import { failResponse } from "@/lib/api-response";
 import { can, isSuperAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { MEDIA_FOLDERS, getStorage, type MediaFolder } from "@/lib/storage";
@@ -26,11 +27,6 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const CONTENT_LENGTH_SLACK = 1024 * 1024;
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
-/** 与 `api/search/route.ts` L38-L40 同款：`{ ok:false, code, message }` + HTTP status */
-function jsonFail(status: number, code: string, message: string) {
-  return NextResponse.json({ ok: false, code, message }, { status });
-}
-
 function isMediaFolder(value: unknown): value is MediaFolder {
   return typeof value === "string" && (MEDIA_FOLDERS as readonly string[]).includes(value);
 }
@@ -39,44 +35,49 @@ export async function POST(request: Request) {
   // ── L1：会话（未登录 401 / 角色异常 403）────────────────────────────────
   const scope = await requireSession();
   if (!scope.ok) {
-    return jsonFail(
-      scope.fail.code === "UNAUTHORIZED" ? 401 : 403,
-      scope.fail.code,
-      scope.fail.message,
-    );
+    return failResponse(scope.fail.code === "UNAUTHORIZED" ? 401 : 403, {
+      code: scope.fail.code,
+      message: scope.fail.message,
+    });
   }
   const { session } = scope;
 
   // ── L2：`media.upload`（docs/14 §4 L377）───────────────────────────────
   if (!can(session.role, "media.upload")) {
-    return jsonFail(403, "FORBIDDEN", "无权上传媒体。");
+    return failResponse(403, { code: "FORBIDDEN", message: "无权上传媒体。" });
   }
 
   // ── 体积预检（可选但便宜；缺失时跳过，交给下面的 file.size）─────────────
   const contentLength = Number.parseInt(request.headers.get("content-length") ?? "", 10);
   if (Number.isFinite(contentLength) && contentLength > MAX_UPLOAD_BYTES + CONTENT_LENGTH_SLACK) {
-    return jsonFail(413, "PAYLOAD_TOO_LARGE", "文件超过 10MB。");
+    return failResponse(413, { code: "PAYLOAD_TOO_LARGE", message: "文件超过 10MB。" });
   }
 
   let formData: FormData;
   try {
     formData = await request.formData();
   } catch {
-    return jsonFail(400, "VALIDATION_FAILED", "请求体不是合法的 multipart/form-data。");
+    return failResponse(400, {
+      code: "VALIDATION_FAILED",
+      message: "请求体不是合法的 multipart/form-data。",
+    });
   }
 
   const rawFile = formData.get("file");
   if (!(rawFile instanceof File)) {
-    return jsonFail(400, "VALIDATION_FAILED", "缺少 file 字段。");
+    return failResponse(400, { code: "VALIDATION_FAILED", message: "缺少 file 字段。" });
   }
 
   // ── 体积主判 ──────────────────────────────────────────────────────────
   if (rawFile.size > MAX_UPLOAD_BYTES) {
-    return jsonFail(413, "PAYLOAD_TOO_LARGE", "文件超过 10MB。");
+    return failResponse(413, { code: "PAYLOAD_TOO_LARGE", message: "文件超过 10MB。" });
   }
 
   if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(rawFile.type)) {
-    return jsonFail(415, "UNSUPPORTED_MEDIA_TYPE", "只支持 JPEG / PNG / WebP / GIF 图片。");
+    return failResponse(415, {
+      code: "UNSUPPORTED_MEDIA_TYPE",
+      message: "只支持 JPEG / PNG / WebP / GIF 图片。",
+    });
   }
 
   const folderRaw = formData.get("folder");
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[api/media/upload] 落盘失败：", error);
-    return jsonFail(500, "INTERNAL_ERROR", "文件写入失败，请稍后重试。");
+    return failResponse(500, { code: "INTERNAL_ERROR", message: "文件写入失败，请稍后重试。" });
   }
 
   const media = await prisma.media.create({

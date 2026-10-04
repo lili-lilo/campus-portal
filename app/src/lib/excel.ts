@@ -74,22 +74,9 @@ export async function buildXlsxResponse(input: {
 }
 
 /**
- * 失败响应（`docs/14` §2.1 信封）：`{ ok:false, code, message }` + 显式 HTTP 状态。
+ * 失败响应（`docs/14` §2.1 信封）—— 实现在 **`@/lib/api-response.ts`**（M6 Step 1 抽取）。
  *
- * 现有的 `api/search/route.ts` L38-L39 有一份**文件内私有**同形实现；导出端点起把该形状
- * 收到本模块，避免第 3 份拷贝（`actions-shared` 的 `Fail` 是 Action 层类型，含 `field?`）。
+ * 本处是**转发导出**（方案②）：3 个导出端点（`articles` / `form-data` / `statistics`）
+ * 的 import 路径与调用方式**零改动**。
  */
-export function failResponse(
-  status: number,
-  failure: { code: string; message: string; field?: string },
-): NextResponse {
-  return NextResponse.json(
-    {
-      ok: false,
-      code: failure.code,
-      message: failure.message,
-      ...(failure.field ? { field: failure.field } : {}),
-    },
-    { status },
-  );
-}
+export { failResponse } from "@/lib/api-response";

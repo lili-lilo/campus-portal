@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { parsePositiveInt } from "@/lib/actions-shared";
+import { failResponse } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -19,23 +20,17 @@ import { prisma } from "@/lib/prisma";
  *   `ip`、`status`**（公开端点不泄露隐私与审核态；契约未列字段，属合理收口）。
  * · **文章不存在 / 无已通过评论** ⇒ 返回**空列表**（`total: 0`）而**非 404**：对外表现与"该文章
  *   0 条评论"一致，也避免用 404 探测文章是否存在（`docs/14` §8 A7 的"404 防探测"针对 `site` slug 场景）。
- * · 错误信封照唯一既有公开端点 `api/search/route.ts` **L38-L39** 的本地 `fail()`（两行）；
- *   成功形状照其 **L119-L129**（`{ ok: true, data: { items, page, pageSize, total, totalPages, hasNext } }`）。
- *   📌 M6 小清理（已登记）：`fail()` 已有 3 份同形实现（search / `lib/excel.ts` / 本文件），
- *   建议抽 `lib/api-response.ts` 统一。
+ * · 错误信封已统一抽到 **`@/lib/api-response.ts`** 的 `failResponse()`（M6 Step 1 落盘）；
+ *   成功形状照 `api/search/route.ts` 的
+ *   `{ ok: true, data: { items, page, pageSize, total, totalPages, hasNext } }`。
  */
-
-/** 失败响应（`docs/14` §2.1 信封；照 `api/search/route.ts` L38-L39） */
-function fail(status: number, code: string, message: string) {
-  return NextResponse.json({ ok: false, code, message }, { status });
-}
 
 export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const articleId = (searchParams.get("articleId") ?? "").trim();
 
   if (!articleId) {
-    return fail(400, "VALIDATION_FAILED", "缺少 articleId。");
+    return failResponse(400, { code: "VALIDATION_FAILED", message: "缺少 articleId。" });
   }
 
   const page = parsePositiveInt(searchParams.get("page") ?? undefined, {

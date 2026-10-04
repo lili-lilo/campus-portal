@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { normalizePage } from "@/components/article-list";
 import { buildHighlights, stripHtml, type SearchHighlights } from "@/components/search-highlight";
+import { failResponse } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -35,10 +36,6 @@ type SearchHit = {
   publishTime: Date | null;
 };
 
-function fail(status: number, code: string, message: string) {
-  return NextResponse.json({ ok: false, code, message }, { status });
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -52,13 +49,16 @@ export async function GET(request: Request) {
   );
 
   if (!siteSlug) {
-    return fail(404, "NOT_FOUND", "站点不存在");
+    return failResponse(404, { code: "NOT_FOUND", message: "站点不存在" });
   }
   if (!query) {
-    return fail(400, "VALIDATION_FAILED", "请输入关键词");
+    return failResponse(400, { code: "VALIDATION_FAILED", message: "请输入关键词" });
   }
   if (query.length > MAX_QUERY_LENGTH) {
-    return fail(400, "VALIDATION_FAILED", `关键词最多 ${MAX_QUERY_LENGTH} 个字符`);
+    return failResponse(400, {
+      code: "VALIDATION_FAILED",
+      message: `关键词最多 ${MAX_QUERY_LENGTH} 个字符`,
+    });
   }
 
   const site = await prisma.site.findUnique({
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     select: { id: true, status: true },
   });
   if (!site || !site.status) {
-    return fail(404, "NOT_FOUND", "站点不存在");
+    return failResponse(404, { code: "NOT_FOUND", message: "站点不存在" });
   }
 
   const now = new Date();
