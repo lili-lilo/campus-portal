@@ -83,3 +83,5 @@ next-env.d.ts
 .vscode/*
 !.vscode/extensions.json
 Thumbs.db
+.env.bak
+.env.*.bak
