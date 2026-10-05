@@ -40,13 +40,14 @@
     "mainNav": "Main navigation"
   },
   "footer": {
-    "copyright": "© XX University. All rights reserved.",
-    "address": "No. 1, XX Road, XX City",
+    "copyright": "MINGDE UNIVERSITY · Portfolio Demo Project",
+    "disclaimer": "A portfolio project · Not a real institution",
+    "address": "Demo address (not a real campus)",
     "contact": "Contact us",
     "sitemap": "Sitemap",
-    "phone": "+86 000 0000 0000",
-    "email": "contact@example.edu.cn",
-    "icp": "Beijing ICP No. 00000000"
+    "phone": "—",
+    "email": "—",
+    "icp": "Portfolio demo (no ICP filing)"
   },
   "home": {
     "headline": "XX University",

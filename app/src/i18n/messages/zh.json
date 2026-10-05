@@ -40,13 +40,14 @@
     "mainNav": "主导航"
   },
   "footer": {
-    "copyright": "版权所有 © XX大学",
-    "address": "XX省XX市XX路 1 号",
+    "copyright": "明德大学 · 技术演示项目",
+    "disclaimer": "本站为技术演示项目 · 非真实教育机构",
+    "address": "演示地址（非真实校址）",
     "contact": "联系我们",
     "sitemap": "站点地图",
-    "phone": "0000-0000000",
-    "email": "contact@example.edu.cn",
-    "icp": "京ICP备00000000号"
+    "phone": "—",
+    "email": "—",
+    "icp": "演示项目（无备案号）"
   },
   "home": {
     "headline": "XX大学",

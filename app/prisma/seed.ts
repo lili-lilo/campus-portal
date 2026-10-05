@@ -240,35 +240,35 @@ type SiteSeed = {
 const SITES: readonly SiteSeed[] = [
   {
     slug: "main",
-    name: "XX大学",
-    nameEn: "XX University",
+    name: "明德大学",
+    nameEn: "MINGDE UNIVERSITY",
     template: "default",
-    description: "XX大学官方网站",
-    descriptionEn: "Official website of XX University",
+    description: "明德大学官方网站",
+    descriptionEn: "Official website of MINGDE UNIVERSITY",
   },
   {
     slug: "cs",
     name: "计算机学院",
     nameEn: "School of Computer Science",
     template: "department",
-    description: "XX大学计算机学院",
-    descriptionEn: "School of Computer Science, XX University",
+    description: "明德大学计算机学院",
+    descriptionEn: "School of Computer Science, MINGDE UNIVERSITY",
   },
   {
     slug: "ee",
     name: "电子信息学院",
     nameEn: "School of Electronic Information",
     template: "department",
-    description: "XX大学电子信息学院",
-    descriptionEn: "School of Electronic Information, XX University",
+    description: "明德大学电子信息学院",
+    descriptionEn: "School of Electronic Information, MINGDE UNIVERSITY",
   },
   {
     slug: "ba",
     name: "商学院",
     nameEn: "Business School",
     template: "department",
-    description: "XX大学商学院",
-    descriptionEn: "Business School, XX University",
+    description: "明德大学商学院",
+    descriptionEn: "Business School, MINGDE UNIVERSITY",
   },
 ] as const;
 
@@ -448,6 +448,415 @@ const ARTICLE_CATEGORIES = [
   { name: "科研动态", count: 10, mainChannel: "research" },
   { name: "校园文化", count: 10, mainChannel: "news" },
 ] as const;
+
+/* ---------------------------------------------------------------------------
+ * 文章内容池（M6 内容重写）
+ * ---------------------------------------------------------------------------
+ * ⚠ 合规：下列机构名 / 活动名 / 竞赛名**全部为虚构**——本项目是技术演示作品集，
+ *    不指名任何真实单位（部委、地方教育行政部门、真实高校、真实企业）。
+ * 结构：每分类 3 个标题模板 + 18~25 个词池条目 ⇒ 组合出 100 条不重样的标题；
+ *       摘要 = 标题 + 分类尾句（合计 40~60 字）；正文 = 摘要 + 主体段 + 结尾长段（4 段）。
+ * ------------------------------------------------------------------------- */
+
+/** 标题模板池：每分类 3 个（{key} 由词池填充，{n} 为序数） */
+const TITLE_TEMPLATES: Record<string, readonly string[]> = {
+  学校要闻: [
+    "明德大学与{org}签署战略合作协议",
+    "明德大学举行{year}级本科生开学典礼",
+    "明德大学召开{theme}工作会议",
+  ],
+  通知公告: ["关于{event}的通知", "关于公布{result}的公示", "{term}放假安排通知"],
+  学术活动: [
+    "{theme}前沿论坛在我校举行",
+    "第{n}届{subject}青年学者论坛征稿",
+    "{subject}国际学术研讨会成功召开",
+  ],
+  招生就业: [
+    "明德大学{year}年本科招生章程发布",
+    "第{n}届毕业生秋季双选会举行",
+    "明德大学{subject}专业获批一流本科专业建设点",
+  ],
+  科研动态: ["我校团队在{field}取得新进展", "{project}启动会召开", "我校{n}项成果获{award}"],
+  校园文化: [
+    "第{n}届校园文化艺术节开幕",
+    "我校学子在{contest}中获佳绩",
+    "明德大学{activity}活动圆满结束",
+  ],
+};
+
+/** 词池：每分类 18~25 条（虚构机构 / 学科 / 活动 / 竞赛；不含任何真实单位名） */
+const TITLE_WORDS: Record<string, Record<string, readonly string[]>> = {
+  学校要闻: {
+    org: [
+      "云岚智能科技集团",
+      "海岳新材料研究院",
+      "启明数字技术有限公司",
+      "远洋能源科技集团",
+      "青麓医疗科技有限公司",
+      "星野环保工程集团",
+      "长风装备制造有限公司",
+      "沐光生物技术研究院",
+      "瀚宇数据科技有限公司",
+      "东篱文化传媒有限公司",
+      "北辰海洋工程研究院",
+      "川岳交通科技集团",
+      "青柏教育科技有限公司",
+      "澄川生物制药有限公司",
+      "南屿建筑设计研究院",
+      "澜山数字传媒集团",
+      "白鹿精密仪器有限公司",
+      "禾风农业发展集团",
+    ],
+    year: ["2026", "2027", "2028"],
+    theme: [
+      "学科建设",
+      "人才培养",
+      "科研工作",
+      "国际合作",
+      "就业创业",
+      "实验室安全",
+      "教学改革",
+      "数字化建设",
+      "师资队伍",
+      "学科评估",
+      "创新创业",
+      "校园安全",
+      "后勤保障",
+      "招生宣传",
+    ],
+  },
+  通知公告: {
+    event: [
+      "开展本学年期中教学检查",
+      "做好毕业生就业推荐工作",
+      "组织申报校级教学改革项目",
+      "开展实验室安全专项检查",
+      "做好新学期学生返校报到工作",
+      "开展校园网络设备维护",
+      "组织教师教学能力培训",
+      "开展图书文献资源需求征集",
+      "做好科研项目中期检查",
+      "开展校园绿化提升工程",
+    ],
+    result: [
+      "校级教学成果奖评审结果",
+      "一流本科课程认定结果",
+      "优秀指导教师评选结果",
+      "学生科研训练计划立项结果",
+      "校园文化精品项目评选结果",
+      "优秀毕业生推荐名单",
+      "实验室建设立项结果",
+      "教师教学竞赛获奖名单",
+    ],
+    term: [
+      "2026 年国庆节",
+      "2027 年元旦",
+      "2026 年寒假",
+      "2027 年清明节",
+      "2027 年劳动节",
+      "2027 年端午节",
+    ],
+  },
+  学术活动: {
+    theme: [
+      "智能材料与结构",
+      "人工智能与医疗健康",
+      "碳中和与新能源",
+      "空天信息与遥感",
+      "量子计算与密码学",
+      "生物医学工程",
+      "数字人文与计算传播",
+      "先进制造与增材技术",
+      "城市更新与智慧交通",
+      "数据安全与隐私计算",
+    ],
+    subject: [
+      "材料科学",
+      "计算机科学",
+      "应用数学",
+      "环境工程",
+      "生物技术",
+      "经济管理",
+      "电子工程",
+      "化学工程",
+      "土木工程",
+      "外国语学",
+    ],
+  },
+  招生就业: {
+    year: ["2026", "2027", "2028"],
+    subject: [
+      "计算机科学与技术",
+      "电子信息工程",
+      "材料科学与工程",
+      "工商管理",
+      "环境工程",
+      "生物医学工程",
+      "数据科学与大数据技术",
+      "会计学",
+      "应用化学",
+      "机械设计制造及其自动化",
+      "英语",
+      "网络空间安全",
+      "软件工程",
+      "自动化",
+      "金融学",
+      "新闻学",
+      "高分子材料与工程",
+      "智能建造",
+    ],
+  },
+  科研动态: {
+    field: [
+      "固态电解质材料",
+      "工业视觉缺陷检测",
+      "高效光伏器件",
+      "微流控芯片",
+      "智能交通调度",
+      "稀有金属回收",
+      "肿瘤早期筛查",
+      "城市碳排放核算",
+      "海洋腐蚀防护",
+      "柔性可穿戴传感",
+      "农业面源污染治理",
+      "大规模图计算",
+    ],
+    project: [
+      "国家重大科技专项「智能感知与边缘计算」项目",
+      "省部级重点研发计划「绿色低碳材料」项目",
+      "校级交叉学科培育项目「数字人文与遗产保护」",
+      "国家自然科学基金重点项目「先进储能材料」",
+      "省部级科技攻关项目「工业软件与数字孪生」",
+      "校级重大培育项目「海洋工程装备与防腐」",
+      "国家重大科技专项「生物医用材料」项目",
+      "省部级重点研发计划「智慧农业与农机装备」项目",
+    ],
+    award: [
+      "校级教学成果奖",
+      "行业协会科技进步奖",
+      "学会优秀成果奖",
+      "校级优秀科研团队奖",
+      "产学研合作创新奖",
+    ],
+  },
+  校园文化: {
+    contest: [
+      "全国大学生智慧城市设计竞赛",
+      "大学生程序设计邀请赛",
+      "全国大学生绿色能源创新大赛",
+      "大学生数学建模邀请赛",
+      "全国大学生机器人大赛",
+      "大学生网络安全挑战赛",
+      "全国大学生市场调查与分析大赛",
+      "大学生化学实验创新设计大赛",
+      "全国大学生结构设计竞赛",
+      "大学生外语演讲大赛",
+    ],
+    activity: [
+      "校园读书节",
+      "志愿服务周",
+      "科技创新月",
+      "体育文化节",
+      "非遗进校园",
+      "心理健康教育月",
+      "师生书画展",
+      "校园歌手大赛",
+    ],
+  },
+};
+
+/** 摘要尾句（每分类 5 条）——与标题拼成 40~60 字导语 */
+const SUMMARY_TAILS: Record<string, readonly string[]> = {
+  学校要闻: [
+    "双方将围绕人才培养、科研攻关与成果转化开展长期合作。",
+    "校领导在讲话中勉励同学们打好基础、保持好奇、勇于探索。",
+    "会议明确了下一阶段重点任务、责任分工与时间节点。",
+    "本次活动为师生了解行业前沿与职业发展提供了窗口。",
+    "学校将进一步完善相关机制，推动各项工作落地见效。",
+  ],
+  通知公告: [
+    "请各单位按要求组织落实，并于规定时间内完成材料报送。",
+    "相关结果现予公示，公示期为五个工作日，逾期不再受理异议。",
+    "假期期间请做好值班安排与安全巡查，确保校园秩序稳定。",
+    "具体办理流程与所需材料详见附件，如有疑问请联系相关部门。",
+    "请相关师生及时关注系统通知，避免影响正常教学与办事安排。",
+  ],
+  学术活动: [
+    "活动由明德大学相关学院承办，校内外百余名师生参加。",
+    "与会学者围绕关键科学问题展开深入讨论，现场交流气氛热烈。",
+    "论坛设置主题报告与圆桌对话环节，并面向青年学者征集论文。",
+    "本次研讨为相关学科搭建了稳定的学术交流与合作平台。",
+    "会议同期举办了海报展示与实验室参观活动。",
+  ],
+  招生就业: [
+    "学校持续完善招生与就业服务体系，为考生和毕业生提供更便捷的对接渠道。",
+    "本次双选会共有百余家用人单位参加，提供岗位两千余个。",
+    "该专业将以此为契机，进一步优化课程体系与实践教学环节。",
+    "招生政策与录取规则以学校正式发布的文件为准。",
+    "就业指导中心将同步开展简历诊断与模拟面试等配套服务。",
+  ],
+  科研动态: [
+    "相关成果已发表于国际学术期刊，并获得同行专家的积极评价。",
+    "项目将围绕关键科学问题开展系统研究，力争形成原创性突破。",
+    "学校将持续加大科研平台与团队建设投入，营造良好的创新生态。",
+    "研究成果为相关产业的技术升级提供了新的思路与实验依据。",
+    "下一步团队将开展中试验证，推动成果向实际应用转化。",
+  ],
+  校园文化: [
+    "活动吸引了众多师生参与，充分展现了校园文化的活力与创造力。",
+    "参赛同学在指导教师带领下完成了多轮方案迭代与现场答辩。",
+    "本次活动既丰富了课余生活，也促进了不同学科同学的交流。",
+    "学校将持续打造校园文化品牌，为学生提供更多展示平台。",
+    "现场还设置了互动体验环节，吸引不少师生驻足参与。",
+  ],
+};
+
+/** 正文主体段（每分类 3 个变体；配合「摘要 + 主体段 + 结尾长段」构成 4 段正文） */
+const CONTENT_BODIES: Record<string, readonly string[]> = {
+  学校要闻: [
+    "签约仪式在校行政楼会议室举行。双方代表分别介绍了各自发展情况与优势领域，并围绕人才培养、联合攻关与实习实践基地建设等议题充分交流，明确建立常态化沟通机制，每年确定一批具体合作事项，推动资源共享与优势互补。",
+    "典礼在庄严的国歌声中开始。校领导为新生代表佩戴校徽并致辞，教师代表、在校生代表与新生代表先后发言，分享了对大学学习与生活的理解。随后，全体新生进行入学宣誓，并参加了入学教育第一课。",
+    "会议由分管校领导主持，相关部门负责人汇报了近期工作进展与存在问题。与会人员围绕重点任务、时间节点与保障措施展开讨论，形成明确分工方案，并对下一阶段督促检查与信息报送工作作出安排。",
+  ],
+  通知公告: [
+    "本次工作由学校相关职能部门统一组织，各学院（单位）按属地原则具体落实。请各单位明确责任人与联系人，按要求建立工作台账，并在规定时间内完成自查与材料报送；学校将组织抽查，抽查结果纳入年度考核。",
+    "评审工作按照公开、公平、公正的原则组织，经个人申报、单位推荐、专家评审等环节形成结果。公示期内如有异议，请以书面形式实名反映并提供必要证明材料；匿名或逾期反映不予受理。",
+    "假期期间，各单位要严格落实值班制度，做好实验室、危化品库与学生宿舍等重点部位的安全巡查，确保水电暖供应与食堂营业时间正常。学生离校须履行请销假手续，返校后及时办理注册。",
+  ],
+  学术活动: [
+    "论坛设主题报告、特邀报告与圆桌对话三个环节。来自校内外的学者围绕关键科学问题分享最新研究进展，并就方法创新、数据共享与交叉合作展开热烈讨论；论坛同期举办了青年学者海报展示。",
+    "研讨会采用线上线下相结合的方式进行，吸引了多所高校与科研机构的代表参加。与会专家分别介绍各自团队的研究方向与阶段性成果，并就下一步联合申报项目、共享实验平台等事项达成初步共识。",
+    "本次活动面向校内外青年学者征集论文，选题涵盖基础研究与应用研究两个方向。组委会将组织专家进行双向匿名评审，优秀论文推荐至相关学术期刊，并邀请作者在论坛上作口头报告。",
+  ],
+  招生就业: [
+    "本次双选会共有百余家用人单位参加，提供岗位两千余个，覆盖信息技术、先进制造、材料化工与金融咨询等行业。现场设置政策咨询、简历诊断与面试辅导专区，为毕业生提供一站式服务。",
+    "招生章程对招生计划、录取规则、专业要求与收费标准等内容作了明确说明。学校将继续实施大类招生与专业分流相结合的培养模式，并完善转专业、辅修与微专业等制度，为学生提供更多选择空间。",
+    "该专业将以此为契机，进一步优化课程体系、强化实践教学环节，并加强与行业企业的协同育人。学校将配套投入专项建设经费，支持师资队伍建设、实验条件改善与教学资源开发。",
+  ],
+  科研动态: [
+    "研究团队围绕关键科学问题开展系统实验与理论分析，提出了新的方法与技术路径。相关结果在多个数据集上取得优于已有方法的性能，并完成小规模验证，为后续中试放大与工程应用奠定基础。",
+    "项目启动会明确了研究目标、技术路线、里程碑节点与经费使用计划。项目组将按照任务书要求开展联合攻关，并建立定期进展汇报与风险预警机制，确保各项研究任务按期高质量完成。",
+    "本次获奖成果涵盖基础研究、技术发明与产学研合作等类别，集中体现了学校在相关领域的积累与突破。学校将进一步完善科研评价与激励机制，支持科研人员长期稳定地开展原创性研究。",
+  ],
+  校园文化: [
+    "本届艺术节为期两周，设舞台演出、主题展览、文化沙龙与工作坊四大板块，涵盖合唱、民乐、话剧、书画摄影展与非遗手作体验等活动，并邀请校外艺术家驻校开展创作交流。",
+    "参赛同学在指导教师带领下完成选题调研、方案设计与多轮迭代，并在现场答辩中清晰呈现作品的设计思路与应用价值。评委从创新性、完成度与表达能力等维度进行综合评定。",
+    "活动设置互动体验与成果展示环节，吸引众多师生驻足参与。组织方表示，将持续打造校园文化品牌活动，为学生提供更多展示自我、交流学习的平台。",
+  ],
+};
+
+/** 正文结尾长段（所有文章共用；同时充当字体 / 字号缩放所需的长文本样本） */
+const CONTENT_CLOSING =
+  "明德大学坚持以人才培养为根本任务，围绕区域经济社会发展需要持续优化学科布局，构建了多学科协调发展的办学格局。" +
+  "学校建有多个省部级重点实验室与工程研究中心，与国内外高校和科研机构保持稳定的交流合作，为学生提供广阔的实践平台与成长空间。" +
+  "校园四季分明，教学楼、图书馆、实验楼与运动场馆错落分布，师生的学习、研究与生活在这里有序展开。";
+
+/** 单页正文段落（key = `site:channel`；`{school}` 由站点名替换） */
+const PAGE_PARAGRAPHS: Record<string, readonly string[]> = {
+  "main:about": [
+    "明德大学是一所以工为主、理工结合、多学科协调发展的教学研究型大学，办学历史可追溯至二十世纪二十年代。学校现设有多个学院与教学单位，覆盖工学、理学、管理学、经济学、文学与艺术等学科门类。",
+    "学校坚持人才培养的中心地位，构建了本科教育、研究生教育与继续教育相衔接的培养体系，持续推进课程改革、实践教学与创新创业教育，努力为学生提供富有挑战性的成长环境。",
+    "学校面向区域经济社会发展需求开展科学研究与社会服务，建有多个省部级重点实验室、工程研究中心与人文社科研究基地，并与行业企业、科研院所保持长期稳定的合作。",
+    "学校重视开放办学，与多个国家和地区的高校及科研机构建立了交流关系，开展学生交换、教师互访与联合研究。校园文化氛围活跃，学生在学术、科技、文艺与体育等领域都有丰富的参与机会。",
+  ],
+  "main:history": [
+    "明德大学的办学源头可追溯至 1923 年，最初以工科教育起步，后逐步增设理、管、文等学科，形成多科性办学格局。",
+    "二十世纪中叶以来，学校经历多次院系调整与办学层次提升，先后开展本科教育与研究生教育，逐步建立起较为完整的学科体系与人才培养体系。",
+    "进入新世纪，学校持续加强内涵建设，推进学科交叉、产教融合与国际化办学，办学条件与人才培养质量稳步提升。",
+    "面向未来，学校将继续以人才培养为根本任务，坚持特色发展与高质量发展并重，努力建设特色鲜明的高水平大学。",
+  ],
+  "main:leaders": [
+    "本页介绍学校现任领导班子与工作分工（演示数据，人物与职务均为虚构）。",
+    "校长：主持学校行政全面工作，分管发展规划、人事与审计工作。",
+    "副校长（教学）：分管本科教育、研究生教育与教学质量监控；副校长（科研）：分管科学研究、学科建设与实验室管理；副校长（国际合作）：分管国际交流、留学生教育与校友工作。",
+    "学校重大事项经领导班子会议集体讨论决定，并按信息公开要求向师生与社会公布。",
+  ],
+  "main:organization": [
+    "学校组织机构由教学科研单位、行政管理部门与直属单位三部分组成。",
+    "教学科研单位包括各学院与研究院（中心），承担人才培养、科学研究与社会服务等职能。",
+    "行政管理部门包括教务、科研、人事、财务、学生工作与后勤保障等机构，为教学科研提供支撑与保障。",
+    "直属单位包括图书馆、信息中心、工程训练中心与档案馆等，面向全校师生提供公共服务。",
+  ],
+  "main:contact": [
+    "地址：演示地址（非真实校址）。本页联系方式均为占位信息，不指向任何真实机构或个人。",
+    "招生咨询、就业服务、图书文献与网络服务等联系方式，请以站内各栏目公布的信息为准。",
+    "工作日服务时间：上午 8:30—11:30，下午 13:30—17:00（演示信息）。",
+    "如需反馈站内问题，请通过后台留言功能提交，我们会在一个工作日内处理。",
+  ],
+  "dept:about": [
+    "{school}是明德大学下设的二级学院，围绕学科前沿与行业需求开展人才培养与科学研究。",
+    "{school}现设有多个本科专业与研究方向，拥有结构合理的师资队伍与较为完善的实验实践条件。",
+    "{school}与行业企业、科研机构保持合作，通过联合实验室、实习基地与产学研项目为学生提供实践机会。",
+    "学院将持续优化课程体系与培养模式，提升人才培养质量与科研服务水平。",
+  ],
+};
+
+/** 用词池填充标题模板（词池里没有的键按序数处理） */
+function fillTitle(tpl: string, i: number, words: Record<string, readonly string[]>): string {
+  let out = tpl;
+  let k = 0;
+  for (const [key, pool] of Object.entries(words)) {
+    const token = `{${key}}`;
+    while (out.includes(token)) {
+      k += 1;
+      // ⚠ i 的系数必须是 1（与任意池长互素），否则长度能整除该系数的词池只能取到少数几个值
+      out = out.replace(token, pick(pool, i + k * 13));
+    }
+  }
+  let n = 0;
+  while (out.includes("{n}")) {
+    n += 1;
+    out = out.replace("{n}", String(2 + ((i * 3 + n * 5) % 22)));
+  }
+  return out;
+}
+
+/** 每分类的标题候选池（枚举「模板 × 词池」组合并去重，进程内缓存） */
+const titlePoolCache = new Map<string, readonly string[]>();
+function titlePool(category: string): readonly string[] {
+  const cached = titlePoolCache.get(category);
+  if (cached) {
+    return cached;
+  }
+  const templates = TITLE_TEMPLATES[category] ?? ["明德大学要闻"];
+  const words = TITLE_WORDS[category] ?? {};
+  const seen = new Set<string>();
+  const list: string[] = [];
+  for (const tpl of templates) {
+    for (let k = 0; k < 200; k += 1) {
+      const s = fillTitle(tpl, k, words);
+      if (!seen.has(s)) {
+        seen.add(s);
+        list.push(s);
+      }
+    }
+  }
+  titlePoolCache.set(category, list);
+  return list;
+}
+
+/** 取标题：**先穷尽该分类的候选池**（池容量按文章数放大），池空后才退化重复。
+ *  ⚠ 必须用「同分类内第几条」（seq）而不是全局下标——全局下标会让模板与词池
+ *  的步长相关，实际只探索到很少的组合（实测曾导致 25 条标题撞名）。 */
+function buildTitle(category: string, seq: number, used: Set<string>): string {
+  const pool = titlePool(category);
+  for (let a = 0; a < pool.length; a += 1) {
+    const candidate = pool[(seq * 7 + a) % pool.length];
+    if (candidate && !used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
+  const fallback = pool[seq % Math.max(1, pool.length)] ?? "明德大学要闻";
+  used.add(fallback);
+  return fallback;
+}
+
+/** 按分类取池中一条（分类缺失时回落到「学校要闻」） */
+function pickFrom(map: Record<string, readonly string[]>, key: string, index: number): string {
+  const pool = map[key] ?? map["学校要闻"] ?? [];
+  return pool.length ? pick(pool, index) : "";
+}
 
 /** 每站点的文章数与状态数（合计：published 80 / pf 6 / pfinal 4 / draft 4 / rej 3 / wd 3 = 100） */
 const ARTICLE_PLAN = [
@@ -642,12 +1051,13 @@ async function seedNavigations(siteIds: IdMap, channelIds: IdMap): Promise<void>
     { name: "专业介绍", nameEn: "Programs", channel: "programs", icon: "BookOpen" },
     { name: "科研成果", nameEn: "Research", channel: "research", icon: "FlaskConical" },
   ];
+  // 友情链接位：**不指向任何真实机构**（合规：本项目为虚构演示，不冒充真实单位）
   const extraLink: NavSeed = {
-    name: "教育部",
-    nameEn: "Ministry of Education",
-    url: "http://www.moe.gov.cn",
+    name: "友情链接",
+    nameEn: "Links",
+    url: "#",
     icon: "ExternalLink",
-    target: "_blank",
+    target: "_self",
   };
 
   let n = 0;
@@ -752,10 +1162,12 @@ async function seedPages(siteIds: IdMap, channelIds: IdMap): Promise<void> {
     const siteId = siteIds.get(p.site);
     const channelId = channelIds.get(`${p.site}:${p.channel}`);
     if (!siteId || !channelId) throw new Error(`[seed] Page 依赖缺失：${p.site}/${p.channel}`);
+    // 单页正文：按 site:channel 取段落（子站 about 用 {school} 占位），内容为虚构演示
+    const siteName = SITES.find((s) => s.slug === p.site)?.name ?? "明德大学";
+    const paras = PAGE_PARAGRAPHS[`${p.site}:${p.channel}`] ?? PAGE_PARAGRAPHS["dept:about"] ?? [];
     const content =
       `<h2>${p.title}</h2>` +
-      `<p>${p.summary}。本页为种子数据，用于验证单页栏目（Channel.type = page）的渲染与后台编辑流程。</p>` +
-      `<p>数据基准时间：2026-10-01；本页由 <code>prisma/seed.ts</code> 的 <code>seedPages()</code> 生成。</p>`;
+      paras.map((t) => `<p>${t.replace("{school}", siteName)}</p>`).join("");
     await prisma.page.upsert({
       where: { siteId_channelId: { siteId, channelId } },
       create: {
@@ -989,6 +1401,11 @@ async function seedArticles(
     校园文化: "组织部",
   };
 
+  /** 同分类内标题去重（模板池 × 词池组合后仍可能撞名，撞了就换一组） */
+  const usedTitles = new Set<string>();
+  /** 每分类已生成条数（0 起算）——作为标题组合的序号，保证组合探索面均匀 */
+  const categorySeq = new Map<string, number>();
+
   for (const [i, row] of plan.entries()) {
     const siteId = siteIds.get(row.site);
     const channelId = channelIds.get(`${row.site}:${row.channel}`);
@@ -998,16 +1415,21 @@ async function seedArticles(
     const creator = pick(creatorsBySite[row.site] ?? ["editor"], i);
     const createdById = userIds.get(creator) ?? null;
     const slug = `article-${row.site}-${String(i + 1).padStart(3, "0")}`;
-    const title = `【${row.category}】${row.site === "main" ? "学校" : "学院"}第 ${i + 1} 期专题报道`;
+    // 标题 / 摘要 / 正文三件套（模板池 + 词池）；source 只区分主站与子站
+    const seq = categorySeq.get(row.category) ?? 0;
+    categorySeq.set(row.category, seq + 1);
+    const title = buildTitle(row.category, seq, usedTitles);
+    const summary = `${title}，${pickFrom(SUMMARY_TAILS, row.category, i * 3)}`;
+    const source = row.site === "main" ? "明德大学新闻网" : "学院办公室";
     const viewCount = (hash32(slug) % 900) + 100;
     const published = row.status === "published";
     const createdAt = shift(-90 + (i % 60), i % 12, i % 60);
     const publishTime = published ? shift(-90 + (i % 60) + 1, i % 12) : null;
     const content =
       `<h2>${title}</h2>` +
-      `<p>本条为种子数据（第 ${i + 1} 条，分类：${row.category}），用于验证前台列表、详情、搜索与后台内容管理。</p>` +
-      `<p>正文含中文长文本以验证字体与字号缩放：学校坚持以人才培养为根本任务，围绕区域经济社会发展需要，` +
-      `持续优化学科布局，构建了多学科协调发展的办学格局。</p>`;
+      `<p>${summary}</p>` +
+      `<p>${pickFrom(CONTENT_BODIES, row.category, i * 5 + 1)}</p>` +
+      `<p>${CONTENT_CLOSING}</p>`;
     const tags = json([row.category, row.site === "main" ? "校级" : "院级"]);
 
     const created = await prisma.article.upsert({
@@ -1017,12 +1439,12 @@ async function seedArticles(
         channelId,
         title,
         slug,
-        summary: `${row.category}｜${title}`,
+        summary,
         content,
         cover: `/uploads/seed/news/cover-${(i % 50) + 1}.jpg`,
         author: authorsByCategory[row.category] ?? "新闻中心",
         createdById,
-        source: row.site === "main" ? "XX大学新闻网" : "学院办公室",
+        source,
         tags,
         status: row.status,
         top: published && i % 10 === 0,
@@ -1036,12 +1458,12 @@ async function seedArticles(
       update: {
         channelId,
         title,
-        summary: `${row.category}｜${title}`,
+        summary,
         content,
         cover: `/uploads/seed/news/cover-${(i % 50) + 1}.jpg`,
         author: authorsByCategory[row.category] ?? "新闻中心",
         createdById,
-        source: row.site === "main" ? "XX大学新闻网" : "学院办公室",
+        source,
         tags,
         status: row.status,
         top: published && i % 10 === 0,
@@ -1252,13 +1674,19 @@ async function seedAuditRecords(
   count("AuditRecord", n);
 }
 
-/** 媒体库素材名（替换原占位「种子素材 N（folder）」——首页轮播会把 name 直接叠字显示） */
-const MEDIA_NAME_BY_FOLDER: Record<(typeof MEDIA_FOLDERS)[number], string> = {
-  carousel: "明德大学校园风光",
-  dept: "明德大学院系风采",
-  leader: "明德大学师资风采",
-  news: "明德大学新闻图片",
-  other: "明德大学校园生活",
+/**
+ * 媒体库素材名池（首页轮播会把 carousel 的 name 直接叠字显示为 Hero 标题）
+ * ---------------------------------------------------------------------------
+ * · carousel = **Hero 标题池**：Hero 只取 `createdAt` 最新的 5 张（= 序号最大的 5 条），
+ *   故按**倒序**取池内标题 ⇒ 首张（最新）显示 pool[0]，且 5 张各不相同。
+ * · 其它 folder 前台不渲染（仅后台媒体库列表），单元素池即固定名。
+ */
+const MEDIA_NAME_POOL: Record<(typeof MEDIA_FOLDERS)[number], readonly string[]> = {
+  carousel: ["走进明德", "书香明德", "学术明德", "全景明德", "青春明德"],
+  dept: ["院系风采"],
+  leader: ["师资风采"],
+  news: ["明德映像"],
+  other: ["校园生活"],
 };
 
 async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
@@ -1275,9 +1703,12 @@ async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
     const type =
       folder === "carousel" ? "image" : i % 17 === 0 ? "video" : i % 23 === 0 ? "file" : "image";
     const path = `/uploads/seed/${folder}/${type}-${String(i).padStart(3, "0")}.${type === "video" ? "mp4" : type === "file" ? "pdf" : "jpg"}`;
-    // 同一 folder 内的序号（01~10），用于「明德大学校园风光 01」这类可读素材名
-    const ordinal = String(Math.floor((i - 1) / MEDIA_FOLDERS.length) + 1).padStart(2, "0");
-    const name = `${MEDIA_NAME_BY_FOLDER[folder]} ${ordinal}`;
+    // 同 folder 内的序号（1~10）；carousel 倒序取标题池，使 Hero（最新 5 条）各不相同
+    const perFolder = Math.floor(total / MEDIA_FOLDERS.length);
+    const ordinal = Math.floor((i - 1) / MEDIA_FOLDERS.length) + 1;
+    const pool = MEDIA_NAME_POOL[folder];
+    const poolIndex = (folder === "carousel" ? perFolder - ordinal : ordinal - 1) % pool.length;
+    const name = pool[poolIndex] ?? pool[0] ?? "校园素材";
     const siteSlug = i % 5 === 0 ? null : pick(["main", "main", "cs", "ee", "ba"], i);
     const siteId = siteSlug ? (siteIds.get(siteSlug) ?? null) : null;
 
@@ -1653,24 +2084,24 @@ async function seedStatistics(siteIds: IdMap): Promise<void> {
 async function seedConfigs(): Promise<void> {
   // 12 条覆盖 docs/10 §10 的 5 个分组（13 §6：约 12 / 5 组）
   const configs = [
-    { key: "seo.home.title", value: "XX大学 - 官方网站", group: "seo" },
+    { key: "seo.home.title", value: "明德大学｜MINGDE UNIVERSITY", group: "seo" },
     {
       key: "seo.home.description",
-      value: "XX大学官方网站，提供新闻、通知、招生与信息服务",
+      value: "明德大学官方网站，提供新闻、通知、招生与信息服务（技术演示项目）",
       group: "seo",
     },
-    { key: "seo.home.keywords", value: "XX大学,高校,招生,科研", group: "seo" },
-    { key: "site.name", value: "XX大学", group: "site" },
-    { key: "site.address", value: "XX省XX市XX路 1 号", group: "site" },
+    { key: "seo.home.keywords", value: "明德大学,高校,招生,科研", group: "seo" },
+    { key: "site.name", value: "明德大学", group: "site" },
+    { key: "site.address", value: "演示地址（非真实校址）", group: "site" },
     {
       key: "site.contact",
-      value: "电话：0000-00000000　邮箱：office@example.edu.cn",
+      value: "本页联系方式为演示占位，不指向真实机构或个人",
       group: "site",
     },
     { key: "security.login_max_attempts", value: "5", group: "security" },
     { key: "security.session_timeout_minutes", value: "120", group: "security" },
     { key: "watermark.enabled", value: "false", group: "watermark" },
-    { key: "watermark.text", value: "XX大学", group: "watermark" },
+    { key: "watermark.text", value: "明德大学", group: "watermark" },
     { key: "sensitive_words.enabled", value: "false", group: "sensitive_words" },
     { key: "sensitive_words.list", value: "[]", group: "sensitive_words" },
   ];

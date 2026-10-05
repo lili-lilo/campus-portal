@@ -119,8 +119,11 @@ export async function SiteFooter({ site, nav, locale }: SiteFooterProps) {
       {/* ④ 版权条 */}
       <div className="border-t border-border">
         <div className="mx-auto flex w-full max-w-page flex-col items-start justify-between gap-2 px-gutter py-4 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <p>{t("copyright")}</p>
-          {/* 备案号为占位值（见 messages 的 footer.icp），上线前必须替换为真实备案号 */}
+          {/* 合规声明：技术演示项目，不冒充真实教育机构 */}
+          <p>
+            {t("copyright")}
+            <span className="ml-2 text-muted-foreground/80">{t("disclaimer")}</span>
+          </p>
           <p>{t("icp")}</p>
         </div>
       </div>

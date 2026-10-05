@@ -74,17 +74,18 @@ type MainQuickLinkKey =
   "quickHall" | "quickMail" | "quickLibrary" | "quickAcademic" | "quickCard" | "quickMap";
 
 /**
- * 主站快捷入口（6 个**外链**）—— 地址仍是占位域名，待 `Config` 化；
+ * 主站快捷入口（6 项）—— 地址为演示占位 `#`，**不指向任何真实站点**；
  * 文案已走 i18n（`home.quick*`），故英文站显示英文。
  */
 function mainQuickLinks(t: (key: MainQuickLinkKey) => string): QuickLinkItem[] {
   return [
-    { label: t("quickHall"), href: "https://example.edu.cn/hall", icon: "landmark" },
-    { label: t("quickMail"), href: "https://mail.example.edu.cn", icon: "mail" },
-    { label: t("quickLibrary"), href: "https://example.edu.cn/library", icon: "library" },
-    { label: t("quickAcademic"), href: "https://example.edu.cn/jw", icon: "bookopen" },
-    { label: t("quickCard"), href: "https://example.edu.cn/card", icon: "award" },
-    { label: t("quickMap"), href: "https://example.edu.cn/map", icon: "building2" },
+    // 演示占位：**不指向任何真实站点**（原为 example.edu.cn 假域名 ⇒ 已改 "#"）
+    { label: t("quickHall"), href: "#", icon: "landmark" },
+    { label: t("quickMail"), href: "#", icon: "mail" },
+    { label: t("quickLibrary"), href: "#", icon: "library" },
+    { label: t("quickAcademic"), href: "#", icon: "bookopen" },
+    { label: t("quickCard"), href: "#", icon: "award" },
+    { label: t("quickMap"), href: "#", icon: "building2" },
   ];
 }
 
