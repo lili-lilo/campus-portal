@@ -1,6 +1,6 @@
 {
   "common": {
-    "siteName": "XX大学",
+    "siteName": "明德大学",
     "loading": "加载中…",
     "empty": "暂无数据",
     "more": "查看更多",
@@ -50,7 +50,7 @@
     "icp": "演示项目（无备案号）"
   },
   "home": {
-    "headline": "XX大学",
+    "headline": "明德大学",
     "subheadline": "百年学府 · 育才兴学 · 追求卓越",
     "latestNews": "学校要闻",
     "notices": "通知公告",

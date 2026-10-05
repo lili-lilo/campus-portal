@@ -1708,7 +1708,9 @@ async function seedMedia(siteIds: IdMap, userIds: IdMap): Promise<void> {
     const ordinal = Math.floor((i - 1) / MEDIA_FOLDERS.length) + 1;
     const pool = MEDIA_NAME_POOL[folder];
     const poolIndex = (folder === "carousel" ? perFolder - ordinal : ordinal - 1) % pool.length;
-    const name = pool[poolIndex] ?? pool[0] ?? "校园素材";
+    const base = pool[poolIndex] ?? pool[0] ?? "校园素材";
+    // 多元素池（carousel）= Hero 标题，直接使用；单元素池加 01~10 序号，便于后台媒体库区分
+    const name = pool.length > 1 ? base : `${base} ${String(ordinal).padStart(2, "0")}`;
     const siteSlug = i % 5 === 0 ? null : pick(["main", "main", "cs", "ee", "ba"], i);
     const siteId = siteSlug ? (siteIds.get(siteSlug) ?? null) : null;
 
