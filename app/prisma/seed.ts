@@ -446,7 +446,7 @@ const ARTICLE_CATEGORIES = [
   { name: "学术活动", count: 15, mainChannel: "news" },
   { name: "招生就业", count: 15, mainChannel: "admissions" },
   { name: "科研动态", count: 10, mainChannel: "research" },
-  { name: "党建思政", count: 10, mainChannel: "news" },
+  { name: "校园文化", count: 10, mainChannel: "news" },
 ] as const;
 
 /** 每站点的文章数与状态数（合计：published 80 / pf 6 / pfinal 4 / draft 4 / rej 3 / wd 3 = 100） */
@@ -734,7 +734,7 @@ async function seedPages(siteIds: IdMap, channelIds: IdMap): Promise<void> {
       channel: "organization",
       title: "组织机构",
       slug: "organization",
-      summary: "党政机构与教学科研单位",
+      summary: "教学科研机构与行政服务部门",
     },
     {
       site: "main",
@@ -981,12 +981,12 @@ async function seedArticles(
   };
 
   const authorsByCategory: Record<string, string> = {
-    学校要闻: "党委宣传部",
+    学校要闻: "宣传部",
     通知公告: "校长办公室",
     学术活动: "科研管理处",
     招生就业: "招生就业处",
     科研动态: "科研管理处",
-    党建思政: "党委组织部",
+    校园文化: "组织部",
   };
 
   for (const [i, row] of plan.entries()) {
@@ -1006,7 +1006,7 @@ async function seedArticles(
     const content =
       `<h2>${title}</h2>` +
       `<p>本条为种子数据（第 ${i + 1} 条，分类：${row.category}），用于验证前台列表、详情、搜索与后台内容管理。</p>` +
-      `<p>正文含中文长文本以验证字体与字号缩放：学校坚持以立德树人为根本任务，围绕国家战略需求与区域经济社会发展需要，` +
+      `<p>正文含中文长文本以验证字体与字号缩放：学校坚持以人才培养为根本任务，围绕国家战略需求与区域经济社会发展需要，` +
       `持续优化学科布局，构建了多学科协调发展的办学格局。</p>`;
     const tags = json([row.category, row.site === "main" ? "校级" : "院级"]);
 
@@ -1020,7 +1020,7 @@ async function seedArticles(
         summary: `${row.category}｜${title}`,
         content,
         cover: `/uploads/seed/news/cover-${(i % 50) + 1}.jpg`,
-        author: authorsByCategory[row.category] ?? "党委宣传部",
+        author: authorsByCategory[row.category] ?? "新闻中心",
         createdById,
         source: row.site === "main" ? "XX大学新闻网" : "学院办公室",
         tags,
@@ -1039,7 +1039,7 @@ async function seedArticles(
         summary: `${row.category}｜${title}`,
         content,
         cover: `/uploads/seed/news/cover-${(i % 50) + 1}.jpg`,
-        author: authorsByCategory[row.category] ?? "党委宣传部",
+        author: authorsByCategory[row.category] ?? "新闻中心",
         createdById,
         source: row.site === "main" ? "XX大学新闻网" : "学院办公室",
         tags,
