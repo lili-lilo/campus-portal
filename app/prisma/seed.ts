@@ -86,8 +86,12 @@ function count(model: string, n: number): void {
 // ---------------------------------------------------------------------------
 
 // seed 是一次性脚本：走**直连**串更稳（pooler 不支持会话级操作，见 docs/11 A31）
+// 连接池配置与 src/lib/prisma.ts 对齐（直连同样会被服务端回收空闲连接）
 const adapter = new PrismaPg({
   connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "",
+  max: 10,
+  idleTimeoutMillis: 5_000,
+  connectionTimeoutMillis: 15_000,
 });
 
 const prisma = new PrismaClient({ adapter });
