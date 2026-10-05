@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """明德大学 · seed 图片批处理（M6 视觉改造）
 ============================================================================
-输入：app/public/uploads/seed/ 根目录下的 47 张 PNG（按 ID 命名：H1 H2 … T10）
+输入：app/assets-src/seed-masters/ 下的 47 张 PNG（按 ID 命名：H1 H2 … T10）
+      ⚠ M6 批次 4a 起母版从 `app/public/uploads/seed/` 根目录**移出 public**
+      （原位置可被前台直接下载 68 MB 单文件，且 537 MB 无需对外暴露）
 输出：app/public/uploads/seed/{carousel,dept,leader,news,other}/ 下 118 个文件
       （覆盖 seed 需要的 120 个路径；2 个视频位按设计留空，见 --dry-run 摘要）
 
@@ -17,7 +19,9 @@
   python app/scripts/process-images.py              # 真正落盘
 
 依赖：Pillow（本机 anaconda 已具备）。**不依赖 node 图像库**（sharp/jimp 均未安装）。
-生成物在 .gitignore 排除的 /public/uploads/ 下，不进仓库；本脚本本身进仓库。
+生成物：`seed/{carousel,dept,leader,news,other}/` 下的 jpg/pdf **已入库**
+（`app/.gitignore` 的 M6 批次 4a 规则只放行这些被 DB 引用的文件）；
+根目录母版在 `app/assets-src/seed-masters/`（gitignore，不入库）。
 """
 
 from __future__ import annotations
@@ -33,7 +37,8 @@ from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFo
 
 # ---------------------------------------------------------------- 路径与常量
 APP = Path(__file__).resolve().parents[1]          # app/
-SEED = APP / "public" / "uploads" / "seed"         # app/public/uploads/seed
+SEED = APP / "public" / "uploads" / "seed"         # 输出根：app/public/uploads/seed（被 DB 引用，入库）
+MASTERS = APP / "assets-src" / "seed-masters"       # 输入根：47 张出图母版（不入库）
 QUALITY = 88
 
 # 品牌色
@@ -309,7 +314,7 @@ def main() -> int:
         return 1
 
     plan = build_plan()
-    missing_src = sorted({src for _, src, _ in plan if not (SEED / f"{src}.png").exists()})
+    missing_src = sorted({src for _, src, _ in plan if not (MASTERS / f"{src}.png").exists()})
     if missing_src:
         print(f"[ERR] 缺源图: {missing_src}", file=sys.stderr)
         return 1
@@ -340,7 +345,7 @@ def main() -> int:
         groups[src].append((rel, var))
 
     for src in order:
-        with Image.open(SEED / f"{src}.png") as raw:
+        with Image.open(MASTERS / f"{src}.png") as raw:
             if raw.mode in ("RGBA", "LA", "P"):
                 raw = raw.convert("RGBA")
                 bg = Image.new("RGB", raw.size, (255, 255, 255))   # T7 带 alpha → 白底

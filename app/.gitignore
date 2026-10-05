@@ -65,9 +65,23 @@ prisma/*.db-journal
 
 # ---------------------------------------------------------------------------
 # 本地上传目录（`docs/11` A33：`LocalStorageAdapter` 的落点）
-# 开发期的媒体文件落在这里，**不进仓库**；生产改走 Supabase Storage（第 6 周）
+# 生产改走 Supabase Storage（第 6 周）
+#
+# M6 批次 4a：**只把 DB 实际引用的 seed 素材入库**（6 个子目录的 jpg/pdf ≈ 36 MB）；
+# 运行时上传物、以及 `seed/` 根目录的 47 张出图母版 PNG（537 MB）继续不入库。
+# 母版已移到 `docs/_assets/seed-masters/`（仓库内但**不在 public** ⇒ 不可被前台访问），
+# 是 `app/scripts/process-images.py` 的输入。
 # ---------------------------------------------------------------------------
-/public/uploads/
+/public/uploads/*
+!/public/uploads/seed/
+/public/uploads/seed/*.png
+!/public/uploads/seed/**/*.jpg
+!/public/uploads/seed/**/*.pdf
+
+# 出图母版目录（537 MB）：留在仓库内但**不入库**
+# （规则相对本文件所在目录 app/ ⇒ 写 `/assets-src/`；原计划放 `docs/_assets/`，
+#   实测该新建目录被沙箱拒绝，故改用 app 内路径）
+/assets-src/
 
 # vercel
 .vercel
