@@ -84,7 +84,7 @@ async function resolveScope(): Promise<ScopeResult> {
 }
 
 /**
- * 4 张卡片的取数：**1 次往返**（`$transaction` 并行 4 条，docs/14 §2.3 L151 的既有口径）。
+ * 4 张卡片的取数：**并行 4 条**（M6 起用 `Promise.all`；原为 `$transaction`，在 Supabase 高延迟下会启动超时）。
  */
 export async function getDashboardStats(): Promise<Ok<DashboardStats> | Fail> {
   const scope = await resolveScope();
@@ -93,7 +93,8 @@ export async function getDashboardStats(): Promise<Ok<DashboardStats> | Fail> {
   }
   const { siteId } = scope;
 
-  const [siteCount, articleGroups, userCount, mediaCount] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [siteCount, articleGroups, userCount, mediaCount] = await Promise.all([
     // 站点数：**不过滤 siteId**（T3.2 裁决 2 的例外）
     prisma.site.count({ where: { status: true } }),
     // 裁决指定的查询形状（by + _count._all）保持不变

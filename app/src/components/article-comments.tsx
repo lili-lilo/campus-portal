@@ -38,7 +38,8 @@ const loadComments = cache(async (articleId: string) => {
   const visible = { articleId, status: "approved", deletedAt: null };
   const topLevel = { ...visible, parentId: null };
 
-  const [items, total] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [items, total] = await Promise.all([
     prisma.comment.findMany({
       where: topLevel,
       orderBy: { createdAt: "desc" },

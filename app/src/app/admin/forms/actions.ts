@@ -162,7 +162,8 @@ export async function listForms(input: {
 
   const where = { ...formVisibility(siteId) };
 
-  const [rows, total] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [rows, total] = await Promise.all([
     prisma.form.findMany({
       where,
       orderBy: { createdAt: "asc" },
@@ -252,7 +253,8 @@ export async function listFormData(input: {
   const status = isFormDataStatus(input.status) ? input.status : undefined;
   const where = { formId, ...(status ? { status } : {}) };
 
-  const [rows, total] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [rows, total] = await Promise.all([
     prisma.formData.findMany({
       where,
       orderBy: { createdAt: "desc" },

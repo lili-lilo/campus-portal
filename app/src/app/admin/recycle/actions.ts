@@ -106,7 +106,8 @@ export async function listRecycleBin(
     ...(ownOnly ? { createdById: session.userId } : {}),
   };
 
-  const [rows, total] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [rows, total] = await Promise.all([
     prisma.article.findMany({
       where,
       orderBy: { deletedAt: "desc" },

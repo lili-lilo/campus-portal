@@ -37,6 +37,17 @@ import {
 import { articleFormSchema, type ArticleFormValues } from "@/lib/validation/article";
 
 /**
+ * 含写事务的超时放宽（M6 修：Supabase 首尔节点跨区延迟高）
+ * ---------------------------------------------------------------------------
+ * `$transaction` 默认 `maxWait` 2s / `timeout` 5s；跨区访问 Supabase pooler 时，
+ * 「获取连接 + BEGIN/COMMIT」的往返就可能超出默认值 ⇒ 报
+ * `Transaction API error: Unable to start a transaction in the given time`。
+ * 只读的 `findMany + count` 已改为 **Promise.all**（本就无需事务）；下面两处含写
+ * 事务（C3 快照 + update、C1 update + auditRecord）必须保持原子性，故显式放宽。
+ */
+const TX_WRITE_OPTS = { maxWait: 10_000, timeout: 15_000 } as const;
+
+/**
  * 文章 Server Actions —— T3.3（列表只读）+ T3.5（新建/编辑写入）
  * ============================================================================
  * 返回信封遵 docs/14 §2.1：`Ok<T> = { ok: true; data: T }` / `Fail = { ok: false; code; message; field? }`。
@@ -238,8 +249,9 @@ export async function listArticles(
       : {}),
   };
 
-  // docs/14 §2.3 L151：findMany + count 用 $transaction 一次拿齐
-  const [rows, total] = await prisma.$transaction([
+  // docs/14 §2.3 L151：findMany + count 一次拿齐（M6 起改用 Promise.all，不再走 $transaction）
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [rows, total] = await Promise.all([
     prisma.article.findMany({
       where,
       orderBy: orderByOf(sortBy, sortOrder),
@@ -677,7 +689,7 @@ async function writeArticle(
           role: session.role,
         },
       });
-    });
+    }, TX_WRITE_OPTS);
   } catch (error) {
     if (isUniqueViolation(error)) {
       return fail("SLUG_TAKEN", "该 slug 在本站点已存在。", "slug");
@@ -850,7 +862,7 @@ async function runTransition(input: {
           comment: input.comment ?? null,
         },
       });
-    });
+    }, TX_WRITE_OPTS);
   } catch (error) {
     if (isUniqueViolation(error)) {
       return fail("CONFLICT", "操作冲突，请刷新后重试。");
@@ -1025,7 +1037,8 @@ export async function listPendingAudits(
     ...(siteId ? { siteId } : {}),
   };
 
-  const [rows, total] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [rows, total] = await Promise.all([
     prisma.article.findMany({
       where,
       orderBy: { updatedAt: "asc" },

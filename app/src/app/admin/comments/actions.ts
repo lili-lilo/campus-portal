@@ -113,7 +113,8 @@ export async function listComments(input: {
     ...(status ? { status } : {}),
   };
 
-  const [rows, total] = await prisma.$transaction([
+  // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）
+  const [rows, total] = await Promise.all([
     prisma.comment.findMany({
       where,
       orderBy: { createdAt: "desc" },
