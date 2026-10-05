@@ -51,7 +51,11 @@ export async function SectionHeading({
 
   return (
     <div
-      className={cn("flex items-end justify-between gap-4 border-b border-border pb-3", className)}
+      className={cn(
+        // `scroll-mt-24`：锚点跳转时给吸顶页头留偏移，避免标题被盖住（M6 批次 3a）
+        "flex scroll-mt-24 items-end justify-between gap-4 border-b border-border pb-3",
+        className,
+      )}
     >
       <div className="flex min-w-0 items-stretch gap-3">
         {/* 主题色竖条（装饰，读屏忽略） */}

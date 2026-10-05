@@ -17,7 +17,12 @@
     "prevPage": "Previous",
     "nextPage": "Next",
     "gotoPage": "Page {page}",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "motto": "Virtue · Excellence · Inquiry · Knowledge",
+    "utilityNav": "Service navigation",
+    "forStudents": "Students",
+    "forFaculty": "Faculty",
+    "forVisitors": "Visitors"
   },
   "channelNotFound": {
     "title": "This section is unavailable",
@@ -54,6 +59,7 @@
     "subheadline": "A Century of Learning · Cultivating Talent · Striving for Excellence",
     "latestNews": "Latest news",
     "notices": "Notices",
+    "noticesTitle": "Announcements",
     "quickLinks": "Quick links",
     "deptNews": "School news",
     "deptNotices": "School notices",

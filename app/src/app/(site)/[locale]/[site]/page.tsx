@@ -208,9 +208,9 @@ export default async function SiteHomePage({
           siteSlug={slug}
         />
 
-        {/* ④ 通知公告（双 tab；M6 视觉改造批次 2：补区块标题 + 英文副题） */}
-        <section className="space-y-4" aria-label={tHome("notices")}>
-          <SectionHeading title={tHome("notices")} subtitle={tHome("noticesSubtitle")} />
+        {/* ④ 信息公告（双 tab；标题用 noticesTitle 与 tab 的「通知公告」区分开，避免同词重复） */}
+        <section className="space-y-4" aria-label={tHome("noticesTitle")}>
+          <SectionHeading title={tHome("noticesTitle")} subtitle={tHome("noticesSubtitle")} />
           <NoticeTabs tabs={noticeTabs} siteSlug={slug} />
         </section>
 
