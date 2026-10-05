@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 
 import { normalizePage } from "@/components/article-list";
 import { buildHighlights, stripHtml, type SearchHighlights } from "@/components/search-highlight";
-import { Prisma } from "@/generated/prisma/client";
 import { failResponse } from "@/lib/api-response";
+import { containsCI } from "@/lib/db-search";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -79,10 +79,7 @@ export async function GET(request: Request) {
     AND: [
       { OR: [{ publishTime: null }, { publishTime: { lte: now } }] },
       {
-        OR: [
-          { title: { contains: query, mode: Prisma.QueryMode.insensitive } },
-          { content: { contains: query, mode: Prisma.QueryMode.insensitive } },
-        ],
+        OR: [{ title: containsCI(query) }, { content: containsCI(query) }],
       },
     ],
   };

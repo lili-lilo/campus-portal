@@ -21,6 +21,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "node scripts/db-reset-guard.mjs && prisma db push --force-reset",
     "db:setup": "prisma db push && prisma db seed",
+    "gen:sqlite-schema": "node scripts/gen-sqlite-schema.mjs",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",

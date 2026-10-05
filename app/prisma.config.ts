@@ -59,7 +59,17 @@ import "dotenv/config";
 
 import { defineConfig, env } from "prisma/config";
 
+const url = process.env.DATABASE_URL ?? "";
+/** `file:` ⇒ SQLite 轨（本地零网络）；`postgresql:` ⇒ PG 轨（生产 Supabase）。M6-5 恢复双轨 */
+const isSqlite = url.startsWith("file:");
+
 export default defineConfig({
+  /**
+   * **双轨（M6-5）**：两份 schema 仅 `datasource.provider` 不同，`prisma/schema.sqlite.prisma`
+   * 由 `scripts/gen-sqlite-schema.mjs` 生成（CI 用 `--check` 校验同步）。
+   */
+  schema: isSqlite ? "prisma/schema.sqlite.prisma" : "prisma/schema.prisma",
+
   /**
    * 数据库连接 —— 供 **Prisma CLI** 使用（generate / migrate / db seed / studio）。
    *
@@ -81,10 +91,11 @@ export default defineConfig({
    *   DATABASE_URL ： pooler 串（端口 6543）—— 运行时 Client 使用，见 src/lib/prisma.ts
    */
   datasource: {
-    // CLI（generate / db push / db seed 的首次连接）走直连串。
-    // 运行时 Client 的连接由 src/lib/prisma.ts 的 pg 适配器用 DATABASE_URL 负责。
+    // SQLite 轨：直接吃 `DATABASE_URL` 的 `file:` 串；
+    // PG 轨：CLI（generate / db push / db seed 的首次连接）走直连串。
+    // 运行时 Client 的连接由 src/lib/prisma.ts 的适配器用 DATABASE_URL 负责。
     // 原因：Supabase pooler 不支持会话级操作（见 docs/11 A31）。
-    url: env("DIRECT_URL"),
+    url: isSqlite ? url : env("DIRECT_URL"),
   },
 
   /**
@@ -111,7 +122,7 @@ export default defineConfig({
    * CLI 默认使用的 schema 文件位置（与 config 的分工见文件头第一节）。
    * 使用默认路径 prisma/schema.prisma 时可省略；schema 文件由 **T1.4** 创建。
    */
-  // schema: "prisma/schema.prisma",
+  // schema 见上方 `schema:` 字段（按 DATABASE_URL 前缀双轨切换；两份 schema 由脚本生成）
 });
 
 /* ============================================================================

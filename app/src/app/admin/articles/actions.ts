@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 
-import { Prisma } from "@/generated/prisma/client";
 import { routing } from "@/i18n/routing";
 import {
   DEFAULT_PAGE_SIZE,
@@ -17,6 +16,7 @@ import {
   type Paginated,
   type SessionContext,
 } from "@/lib/actions-shared";
+import { containsCI } from "@/lib/db-search";
 import { can, inScope, isSuperAdmin, type PermissionCode } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -241,10 +241,7 @@ export async function listArticles(
     ...(status ? { status } : {}),
     ...(keyword
       ? {
-          OR: [
-            { title: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
-            { summary: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
-          ],
+          OR: [{ title: containsCI(keyword) }, { summary: containsCI(keyword) }],
         }
       : {}),
   };

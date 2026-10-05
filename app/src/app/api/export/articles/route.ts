@@ -1,8 +1,8 @@
 import * as ExcelJS from "exceljs";
 
-import { Prisma } from "@/generated/prisma/client";
 import { requireSession } from "@/lib/actions-shared";
 import { dateKeyOf, formatTableDate } from "@/lib/date";
+import { containsCI } from "@/lib/db-search";
 import { MAX_EXPORT_ROWS, buildXlsxResponse, failResponse } from "@/lib/excel";
 import { can, isSuperAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -93,10 +93,7 @@ export async function GET(request: Request): Promise<Response> {
     ...(status ? { status } : {}),
     ...(keyword
       ? {
-          OR: [
-            { title: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
-            { summary: { contains: keyword, mode: Prisma.QueryMode.insensitive } },
-          ],
+          OR: [{ title: containsCI(keyword) }, { summary: containsCI(keyword) }],
         }
       : {}),
   };

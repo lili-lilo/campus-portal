@@ -1,6 +1,5 @@
 "use server";
 
-import { Prisma } from "@/generated/prisma/client";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -12,6 +11,7 @@ import {
   type Ok,
   type Paginated,
 } from "@/lib/actions-shared";
+import { containsCI } from "@/lib/db-search";
 import { can, inScope, isSuperAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -90,7 +90,7 @@ export async function listMedia(
     ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}),
     ...(input.folder ? { folder: input.folder } : {}),
     ...(input.type ? { type: input.type } : {}),
-    ...(keyword ? { name: { contains: keyword, mode: Prisma.QueryMode.insensitive } } : {}),
+    ...(keyword ? { name: containsCI(keyword) } : {}),
   };
 
   // 只读并行查询：Promise.all 取代 $transaction（无需原子性；避免 Supabase 高延迟下事务启动超时）

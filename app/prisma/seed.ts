@@ -35,6 +35,7 @@
 
 import bcrypt from "bcryptjs";
 
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -85,14 +86,21 @@ function count(model: string, n: number): void {
 // Prisma 客户端（Prisma 7：从生成路径导入 + 显式传驱动适配器）
 // ---------------------------------------------------------------------------
 
-// seed 是一次性脚本：走**直连**串更稳（pooler 不支持会话级操作，见 docs/11 A31）
-// 连接池配置与 src/lib/prisma.ts 对齐（直连同样会被服务端回收空闲连接）
-const adapter = new PrismaPg({
-  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "",
-  max: 10,
-  idleTimeoutMillis: 5_000,
-  connectionTimeoutMillis: 15_000,
-});
+// seed 是一次性脚本，**双轨判定与 src/lib/prisma.ts 一致**：
+//   · `DATABASE_URL` 以 `file:` 开头 ⇒ 本地 SQLite（直接吃该串）
+//   · 否则 ⇒ PG 轨，且走**直连**串更稳（pooler 不支持会话级操作，见 docs/11 A31）
+// ⚠ 先看 DATABASE_URL 的前缀再看 DIRECT_URL —— 否则"本地 SQLite + 残留 DIRECT_URL(PG)"
+//   会静默灌到生产库。
+const runtimeUrl = process.env.DATABASE_URL ?? "";
+const url = runtimeUrl.startsWith("file:") ? runtimeUrl : (process.env.DIRECT_URL ?? runtimeUrl);
+const adapter = url.startsWith("file:")
+  ? new PrismaBetterSqlite3({ url, timeout: 5_000 })
+  : new PrismaPg({
+      connectionString: url,
+      max: 10,
+      idleTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 15_000,
+    });
 
 const prisma = new PrismaClient({ adapter });
 
