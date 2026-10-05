@@ -1,10 +1,12 @@
-# XX大学站群系统（campus-portal）
+# 明德大学站群系统（campus-portal）
 
-高校官网站群系统作品集项目：主站 + 3 个院系子站、六态内容审核流、RBAC 权限、全站搜索、中英双语与无障碍。
+高校官网站群系统作品集项目：主站 + 3 个院系子站、六态内容审核流、RBAC 三级权限、全站搜索、中英双语（URL 级切换）与无障碍。
 
-- **启动与账号**：[`app/README.md`](app/README.md) —— 第 0 步准备 `.env`，随后 `pnpm install` → `pnpm db:setup` → `pnpm dev`
+- **启动与账号**：[`app/README.md`](app/README.md) —— 第 0 步准备 `.env`（Supabase 连接 + `AUTH_SECRET`），随后 `pnpm install` → `pnpm db:seed` → `pnpm dev`
 - **演示动线**：[`docs/07-演示账号与链路.md`](docs/07-演示账号与链路/07-演示账号与链路.md)
 - **文档入口**：先读 [`docs/00-项目状态.md`](docs/00-项目状态.md)（总进度与环境限制），权威裁决见 [`docs/11-裁决记录.md`](docs/11-裁决记录.md)
-- **技术栈与版本**：[`docs/12-技术栈冻结.md`](docs/12-技术栈冻结.md)
+- **M6 交接**：[`docs/M6-状态交接.md`](docs/M6-状态交接.md)
+
+> ⚠ **本站为技术演示项目 · 非真实教育机构**：校名「明德大学」、内容与数据均为虚构，不冒充任何真实单位、不伪造备案号。
 
 > `docs/` 是规格与决策的唯一来源；代码与文档冲突时以 `docs/` 为准（见 `docs/00` §0）。

@@ -31,14 +31,14 @@
 
 ## 圆角
 - 按钮：8px
-- 卡片：12px
+- 卡片：8px（**M6 视觉改造**：原 12px → 8px，向"985 官网"观感靠）
 - 输入框：8px
 - 图片：8px
 
 ## 阴影
-- 卡片：`0 1px 3px rgba(0,0,0,0.06)`
-- 悬浮：`0 4px 12px rgba(0,0,0,0.1)`
-- 弹窗：`0 20px 40px rgba(0,0,0,0.15)`
+- 卡片：`0 1px 2px rgba(0,0,0,0.04)`（**M6 视觉改造**：原 `0 1px 3px rgba(0,0,0,0.06)` → 减弱到几乎不可见）
+- 悬浮：`0 8px 20px rgba(0,0,0,0.08)`（**M6 视觉改造**：只有 hover 才有存在感）
+- 弹窗：`0 20px 40px rgba(0,0,0,0.15)`（不变）
 
 ## 动画
 - 过渡时长：200-300ms
@@ -130,17 +130,17 @@
 | token | 值 | 对应组件类（实测） |
 |---|---|---|
 | `--radius-lg` | `8px` | button / input / textarea / select 用 `rounded-lg` → **8px** ✓ |
-| `--radius-xl` | `12px` | card / dialog / alert-dialog 用 `rounded-xl` → **12px** ✓ |
+| `--radius-xl` | `8px` | card / dialog / alert-dialog 用 `rounded-xl` → **8px** ✓（M6：原 12px） |
 | `--radius-sm` / `--radius-md` | `4px` / `6px` | 小控件 |
 | `--radius-2xl` / `-3xl` / `-4xl` | `16px` / `24px` / `32px` | badge 用 `rounded-4xl` |
 | `--radius-btn` / `--radius-field` | `8px` | 语义别名（DoD 用） |
-| `--radius-card` | `12px` | 语义别名（DoD 用） |
+| `--radius-card` | `8px` | 语义别名（DoD 用）（M6：原 12px） |
 | `--radius-image` | `8px` | 语义别名 |
 
 **阴影**（`@theme`：`--shadow-card` / `--shadow-hover` / `--shadow-modal`）
 
-- 卡片 `0 1px 3px rgba(0,0,0,0.06)`
-- 悬浮 `0 4px 12px rgba(0,0,0,0.1)`
+- 卡片 `0 1px 2px rgba(0,0,0,0.04)`（M6 视觉改造）
+- 悬浮 `0 8px 20px rgba(0,0,0,0.08)`（M6 视觉改造）
 - 弹窗 `0 20px 40px rgba(0,0,0,0.15)`
 
 **断点**：`--breakpoint-sm/md/lg/xl/2xl` 用 **rem** 显式声明（`40/48/64/80/96rem`）。⚠ 实测 **Tailwind v4 默认值已与 08 完全一致**（640/768/1024/1280/1536px @ 16px 根字号）→ 本项是**自文档化**，不是新增能力；用 rem 的理由见 S5。
