@@ -5,9 +5,11 @@
 #     verify —— install / typecheck / lint / test，**所有 push + PR 都跑**
 #     build  —— install / build，**仅 push 到 main 时跑**（裁决 ②）
 # · Node 24.x（与 package.json 的 engines 一致，满足 Prisma 7 的 >=24.0）
-# · PostgreSQL：M6 Step 4b 起本地/生产统一 PG ⇒ verify job 起 `postgres:16` service 容器，
-#   建表用 `prisma db push`（`prisma/migrations/` 已随 SQLite 双轨一并删除）；
-#   build job 不需要真库，只给 dummy 串让 `prisma generate` 通过。
+# · **双轨（M6-5 恢复）**：verify job 为矩阵 `track: [sqlite, postgres]` ——
+#   sqlite 轨用 `file:./prisma/ci.db`（零 service）、postgres 轨用 `postgres:16` service；
+#   建表统一用 `prisma db push`（`prisma/migrations/` 已删，两轨都不建 migrations）；
+#   每轨先跑 `node scripts/gen-sqlite-schema.mjs --check` 校验两份 schema 同步。
+#   build job 不需要真库，只给 dummy PG 串让 `prisma generate`（PG 轨）通过。
 # · 不跑 E2E（docs/16 §5：太慢，仅本地演示前跑）
 # · 项目在 app/ 子目录：**所有步骤的 working-directory 都是 app**，
 #   根目录只用于承载 git 钩子（husky），CI 不在根装依赖
@@ -35,8 +37,14 @@ defaults:
 
 jobs:
   verify:
-    name: verify（install / typecheck / lint / test）
+    name: verify（${{ matrix.track }}）
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 双轨矩阵（M6-5）：本地默认 SQLite、生产是 PG ⇒ 两轨都测（docs/11 A31 / docs/16 §3）
+        # ⚠ GitHub 不支持"条件 service" ⇒ sqlite 轨也会把 postgres 容器起起来（不连它即可）
+        track: [sqlite, postgres]
     services:
       postgres:
         image: postgres:16
@@ -52,9 +60,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # 单测不连库；seed-idempotency（CI 专用）连下面这个 service 容器
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/campus_test"
-      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/campus_test"
+      # 按轨取连接串：`file:` ⇒ SQLite（零 service）；`postgresql:` ⇒ 上面那个 service 容器。
+      # prisma.config.ts 按同一前缀自动选 schema（schema.sqlite.prisma / schema.prisma）。
+      DATABASE_URL: ${{ matrix.track == 'sqlite' && 'file:./prisma/ci.db' || 'postgresql://postgres:postgres@localhost:5432/campus_test' }}
+      DIRECT_URL: ${{ matrix.track == 'sqlite' && 'file:./prisma/ci.db' || 'postgresql://postgres:postgres@localhost:5432/campus_test' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,12 +83,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check SQLite schema sync
+        # 两份 schema 必须只差 provider 行（否则 sqlite 轨会与 pg 轨漂移）
+        run: node scripts/gen-sqlite-schema.mjs --check
+
       - name: Generate Prisma Client
+        # 按 DATABASE_URL 前缀自动选 schema（prisma.config.ts），无需显式 --schema
         run: pnpm prisma generate
 
       - name: Setup test database
-        # seed-idempotency 用例需要真实 PostgreSQL；无 migrations ⇒ 用 db push 建表
-        # （测试体内也会 push 一次，幂等重复）
+        # seed-idempotency 用例需要真实库：postgres 轨用 service 容器、sqlite 轨用文件库；
+        # 无 migrations ⇒ 用 db push 建表（测试体内也会 push 一次，幂等重复）
         run: pnpm prisma db push
 
       - name: Typecheck
