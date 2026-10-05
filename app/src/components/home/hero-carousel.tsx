@@ -150,16 +150,25 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
                   ) : null}
 
                   {showImage ? (
-                    <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-foreground/85 via-foreground/40 to-transparent p-6">
+                    <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-foreground/85 via-foreground/40 to-transparent px-6 pt-16 pb-20 md:px-10 md:pb-24">
                       {/* 标题 fade-up：key 随「是否当前页」翻转 ⇒ 切页时重播；reduced-motion 时静态 */}
                       <motion.span
                         key={`hero-title-${item.id}-${selected === index}`}
                         initial={reduce ? false : { opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={reduce ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }}
-                        className="line-clamp-2 block font-heading text-lg font-semibold text-background md:text-2xl"
+                        className="block max-w-3xl"
                       >
-                        {item.title}
+                        {/* 英文副题（品牌名） */}
+                        <span className="block text-xs font-medium tracking-[0.3em] text-background/80 uppercase md:text-sm">
+                          {t("heroSubtitle")}
+                        </span>
+                        {/* 中文主标题 */}
+                        <span className="mt-2 line-clamp-2 block font-heading text-lg font-semibold text-background md:text-2xl">
+                          {item.title}
+                        </span>
+                        {/* 品牌金色细线 */}
+                        <span className="mt-3 block h-px w-[60px] bg-gold" aria-hidden="true" />
                       </motion.span>
                     </span>
                   ) : (
@@ -182,22 +191,27 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
         <CarouselNext className="right-3 hidden md:inline-flex" />
       </Carousel>
 
-      {/* 自动播放开关：可关闭（悬停暂停之外的第二条出路，键盘可达） */}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        aria-pressed={!playing}
-        onClick={() => setPlaying((value) => !value)}
-        className="absolute right-3 bottom-3 z-10 bg-background/90 backdrop-blur"
-      >
-        {playing ? (
-          <PauseIcon className="size-4" aria-hidden="true" />
-        ) : (
-          <PlayIcon className="size-4" aria-hidden="true" />
-        )}
-        {playing ? t("pause") : t("play")}
-      </Button>
+      {/* 右下角：页码指示器 + 自动播放开关（同一行排列，互不重叠） */}
+      <div className="absolute right-3 bottom-3 z-10 flex items-center gap-2 md:right-6 md:bottom-6 md:gap-3">
+        <span className="font-heading text-xs tracking-[0.2em] text-background/70 tabular-nums">
+          {String(selected + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-pressed={!playing}
+          onClick={() => setPlaying((value) => !value)}
+          className="bg-background/90 backdrop-blur"
+        >
+          {playing ? (
+            <PauseIcon className="size-4" aria-hidden="true" />
+          ) : (
+            <PlayIcon className="size-4" aria-hidden="true" />
+          )}
+          {playing ? t("pause") : t("play")}
+        </Button>
+      </div>
     </section>
   );
 }

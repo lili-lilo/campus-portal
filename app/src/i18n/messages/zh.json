@@ -66,7 +66,18 @@
     "quickLibrary": "图书馆",
     "quickAcademic": "教务系统",
     "quickCard": "一卡通",
-    "quickMap": "校园地图"
+    "quickMap": "校园地图",
+    "heroSubtitle": "MINGDE UNIVERSITY",
+    "newsSubtitle": "News",
+    "noticesSubtitle": "Notices",
+    "departmentsSubtitle": "Schools & Departments",
+    "statsLabel": "学校数据",
+    "statFounded": "建校年份",
+    "statSchools": "学院",
+    "statStudents": "在校生",
+    "statStaff": "教职工",
+    "statPartners": "国际合作院校",
+    "statAcademicians": "两院院士"
   },
   "news": {
     "title": "新闻中心",

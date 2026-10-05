@@ -8,7 +8,8 @@ import { NewsList } from "@/components/home/news-list";
 import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
 import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
 import { SiteCards } from "@/components/home/site-cards";
-import { SectionTitle } from "@/components/ui/section-title";
+import { StatsBand } from "@/components/home/stats-band";
+import { SectionHeading } from "@/components/site/section-heading";
 import type { AppLocale } from "@/i18n/routing";
 import { localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
@@ -188,6 +189,9 @@ export default async function SiteHomePage({
       {/* ① 焦点图轮播（**通栏**：移出 max-w-page 容器，M6 视觉改造批次 1；0 条则不渲染） */}
       {slides.length > 0 ? <HeroCarousel items={slides} /> : null}
 
+      {/* ①′ 数字看板（**通栏深色**，M6 视觉改造批次 2：位于 Hero 之后、快捷入口之前） */}
+      <StatsBand />
+
       {/* ②~⑤ 其余区块保持居中容器（间距/内边距不变） */}
       <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">
         {/* ② 快捷入口（6 项；数据源待第 3~4 周接 Config/Server Action） */}
@@ -199,18 +203,24 @@ export default async function SiteHomePage({
         <NewsList
           items={news}
           title={tHome("latestNews")}
+          subtitle={tHome("newsSubtitle")}
           moreHref={`/${slug}/news`}
           siteSlug={slug}
         />
 
-        {/* ④ 通知公告（双 tab；区块标题即 tab 标签，避免重复，故不加 SectionTitle） */}
-        <section aria-label={tHome("notices")}>
+        {/* ④ 通知公告（双 tab；M6 视觉改造批次 2：补区块标题 + 英文副题） */}
+        <section className="space-y-4" aria-label={tHome("notices")}>
+          <SectionHeading title={tHome("notices")} subtitle={tHome("noticesSubtitle")} />
           <NoticeTabs tabs={noticeTabs} siteSlug={slug} />
         </section>
 
         {/* ⑤ 院系设置 */}
         <section className="space-y-4">
-          <SectionTitle title={tNav("departments")} moreHref={`/${slug}/departments`} />
+          <SectionHeading
+            title={tNav("departments")}
+            subtitle={tHome("departmentsSubtitle")}
+            moreHref={`/${slug}/departments`}
+          />
           <SiteCards sites={sites} />
         </section>
       </div>

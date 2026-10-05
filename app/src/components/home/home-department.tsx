@@ -4,7 +4,7 @@ import { CoverBlock } from "@/components/article-card";
 import { NewsList } from "@/components/home/news-list";
 import { NoticeTabs, type NoticeTab } from "@/components/home/notice-tabs";
 import { QuickLinks, type QuickLinkItem } from "@/components/home/quick-links";
-import { SectionTitle } from "@/components/ui/section-title";
+import { SectionHeading } from "@/components/site/section-heading";
 import { localizedDescription, localizedName } from "@/lib/localized-name";
 import { prisma } from "@/lib/prisma";
 import type { SiteContext } from "@/lib/site-context";
@@ -143,7 +143,11 @@ export async function HomeDepartment({ context }: HomeDepartmentProps) {
 
       {/* ④ 本院公告（单 tab） */}
       <section className="space-y-4">
-        <SectionTitle title={t("deptNotices")} moreHref={`/${site.slug}/news`} />
+        <SectionHeading
+          title={t("deptNotices")}
+          subtitle={t("noticesSubtitle")}
+          moreHref={`/${site.slug}/news`}
+        />
         <NoticeTabs tabs={tabs} siteSlug={site.slug} />
       </section>
 

@@ -66,7 +66,18 @@
     "quickLibrary": "Library",
     "quickAcademic": "Academic Affairs",
     "quickCard": "Campus Card",
-    "quickMap": "Campus Map"
+    "quickMap": "Campus Map",
+    "heroSubtitle": "MINGDE UNIVERSITY",
+    "newsSubtitle": "News",
+    "noticesSubtitle": "Notices",
+    "departmentsSubtitle": "Schools & Departments",
+    "statsLabel": "University at a glance",
+    "statFounded": "Founded",
+    "statSchools": "Schools",
+    "statStudents": "Students",
+    "statStaff": "Faculty & staff",
+    "statPartners": "Global partners",
+    "statAcademicians": "Academicians"
   },
   "news": {
     "title": "News",
