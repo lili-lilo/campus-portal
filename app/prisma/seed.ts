@@ -862,6 +862,37 @@ function pickFrom(map: Record<string, readonly string[]>, key: string, index: nu
   return pool.length ? pick(pool, index) : "";
 }
 
+/**
+ * 封面池按分类绑定（M6 批次 4a：修「图文不符」）
+ * ---------------------------------------------------------------------------
+ * 原来 `cover-${(i % 50) + 1}` 是**全局随机轮换** ⇒ 「放假通知配毕业典礼图」「签约协议配草坪图」。
+ * 现在每个分类固定一个连续区间（同类列表视觉风格一致）；**通知公告 = 公文类，不配图**
+ * （真站的通知列表也多无图，前台走 `CoverBlock` 的渐变兜底 + 居中标题）。
+ *
+ * ⚠ 区间与画面内容的对应**未经逐张目视核对**（50 张为出图批次的 AI 校园图）：
+ * 只保证"同类同池、确定可复现"。若要严格图文对应，需按 `docs/明德大学-图片映射表.md`
+ * 的方式再过一遍图并改这里的区间。
+ */
+const COVER_RANGE_BY_CATEGORY: Record<string, readonly [number, number]> = {
+  学校要闻: [1, 10],
+  学术活动: [21, 30],
+  招生就业: [31, 40],
+  科研动态: [41, 45],
+  校园文化: [46, 50],
+};
+
+/** 取该分类的封面路径（无区间 ⇒ `null` = 不配图）；`seq` 为分类内序号，池内轮换 */
+function coverFor(category: string, seq: number): string | null {
+  const range = COVER_RANGE_BY_CATEGORY[category];
+  if (!range) {
+    return null;
+  }
+  const [from, to] = range;
+  const n = from + (seq % (to - from + 1));
+  // 磁盘文件为**两位补零**（cover-01.jpg … cover-50.jpg），与出图批处理的命名一致
+  return `/uploads/seed/news/cover-${String(n).padStart(2, "0")}.jpg`;
+}
+
 /** 每站点的文章数与状态数（合计：published 80 / pf 6 / pfinal 4 / draft 4 / rej 3 / wd 3 = 100） */
 const ARTICLE_PLAN = [
   {
@@ -1445,13 +1476,13 @@ async function seedArticles(
         slug,
         summary,
         content,
-        cover: `/uploads/seed/news/cover-${(i % 50) + 1}.jpg`,
+        cover: coverFor(row.category, seq),
         author: authorsByCategory[row.category] ?? "新闻中心",
         createdById,
         source,
         tags,
         status: row.status,
-        top: published && i % 10 === 0,
+        top: false, // 置顶由 seed 收尾统一设置（见 seedArticles 末尾：只置顶最新 2 篇）
         recommend: published && i % 5 === 0,
         viewCount,
         publishTime,
@@ -1464,13 +1495,13 @@ async function seedArticles(
         title,
         summary,
         content,
-        cover: `/uploads/seed/news/cover-${(i % 50) + 1}.jpg`,
+        cover: coverFor(row.category, seq),
         author: authorsByCategory[row.category] ?? "新闻中心",
         createdById,
         source,
         tags,
         status: row.status,
-        top: published && i % 10 === 0,
+        top: false, // 置顶由 seed 收尾统一设置（见 seedArticles 末尾：只置顶最新 2 篇）
         recommend: published && i % 5 === 0,
         viewCount,
         publishTime,
@@ -1481,6 +1512,29 @@ async function seedArticles(
     articleIds.push(created.id);
     byId.set(created.id, row);
     if (published) publishedIds.push(created.id);
+  }
+
+  // 置顶收尾（M6 批次 4a）
+  // ---------------------------------------------------------------------------
+  // 「首页日期看起来乱序」的根因是**置顶优先**（首页 `orderBy = [{top:"desc"},{publishTime:"desc"}]`）：
+  // 原来 `top: i % 10 === 0` 会随机置顶 9 篇，且它们的日期都**旧于**未置顶的最新一篇 ⇒ 观感错乱。
+  // 改为：只把**主站最新的 2 篇已发布文章**置顶 —— 它们本来就是最新，首页顺序仍单调递减，
+  // 既保留「置顶」这条内容能力，又不再破坏阅读顺序。
+  await prisma.article.updateMany({ data: { top: false } });
+  const mainSiteId = siteIds.get("main");
+  if (mainSiteId) {
+    const newest = await prisma.article.findMany({
+      where: { siteId: mainSiteId, status: "published", deletedAt: null },
+      orderBy: { publishTime: "desc" },
+      take: 2,
+      select: { id: true },
+    });
+    if (newest.length > 0) {
+      await prisma.article.updateMany({
+        where: { id: { in: newest.map((a) => a.id) } },
+        data: { top: true },
+      });
+    }
   }
 
   count("Article", plan.length);

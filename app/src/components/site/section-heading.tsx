@@ -52,8 +52,9 @@ export async function SectionHeading({
   return (
     <div
       className={cn(
-        // `scroll-mt-24`：锚点跳转时给吸顶页头留偏移，避免标题被盖住（M6 批次 3a）
-        "flex scroll-mt-24 items-end justify-between gap-4 border-b border-border pb-3",
+        // `scroll-mt-28`：锚点跳转时给吸顶页头留偏移（utility 36 + 主栏 80 = 116px，
+        // 压缩后 100px）—— M6 批次 3a 起，批次 4a 由 24 调为 28
+        "flex scroll-mt-28 items-end justify-between gap-4 border-b border-border pb-3",
         className,
       )}
     >

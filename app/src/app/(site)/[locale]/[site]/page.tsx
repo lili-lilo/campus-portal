@@ -134,9 +134,11 @@ export default async function SiteHomePage({
       take: 5,
       select: { id: true, name: true, path: true },
     }),
-    // ③ 学校要闻：置顶优先，其次按发布时间倒序
+    // ③ 学校要闻：**只取 news 频道**（M6 批次 4a —— 原先不限频道，公文类「通知公告」也混进要闻区，
+    //    既与下方「信息公告」区块重复，又会因该类文章不配图而让首页大图卡退化成渐变块）；
+    //    置顶优先，其次按发布时间倒序
     prisma.article.findMany({
-      where: publishedWhere,
+      where: { ...publishedWhere, channel: { slug: "news" } },
       orderBy: [{ top: "desc" }, { publishTime: "desc" }],
       take: 6,
       select: ARTICLE_SELECT,
