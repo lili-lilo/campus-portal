@@ -33,6 +33,9 @@ coverage/
 test-results/
 playwright-report/
 
+# 演示录屏产物（本地生成，不进仓库；脚本 = app/tests/demo-video.spec.ts + playwright.demo.config.ts）
+docs/演示视频/
+
 # husky 的运行时 shim 目录（由 `husky` 命令生成，内容含 husky 自身脚本）
 .husky/_/
 
