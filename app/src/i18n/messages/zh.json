@@ -50,6 +50,9 @@
     "address": "演示地址（非真实校址）",
     "contact": "联系我们",
     "sitemap": "站点地图",
+    "quickLinks": "快速链接",
+    "services": "服务链接",
+    "qrHint": "官微二维码",
     "phone": "—",
     "email": "—",
     "icp": "演示项目（无备案号）"
