@@ -1,6 +1,7 @@
 "use client";
 
 import { PauseIcon, PlayIcon } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -56,6 +57,10 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
   const [playing, setPlaying] = useState(true);
   const [paused, setPaused] = useState(false);
   const [broken, setBroken] = useState<readonly string[]>([]);
+  /** 当前页下标：用于让「标题 fade-up」在**切到该页时重播**（而不是只在首帧跑一次） */
+  const [selected, setSelected] = useState(0);
+  /** 无障碍：`prefers-reduced-motion: reduce` 时所有动效降级为静态（M6 视觉改造） */
+  const reduce = useReducedMotion();
 
   // 自动播放：5s 一张；悬停/聚焦暂停或手动关闭时清掉定时器
   useEffect(() => {
@@ -67,6 +72,20 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
     }, AUTOPLAY_MS);
     return () => window.clearInterval(timer);
   }, [api, playing, paused]);
+
+  // 记录当前页：标题入场动画以 `selected` 翻转（key 变化 ⇒ 重挂载）为触发点。
+  // ⚠ 不在 effect 里同步 setState（`react-hooks/set-state-in-effect`）：embla 初始即第 0 页，
+  //   而 `selected` 初值就是 0，故只需订阅后续变化。
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+    const onSelect = () => setSelected(api.selectedScrollSnap());
+    api.on("select", onSelect);
+    return () => {
+      api.off("select", onSelect);
+    };
+  }, [api]);
 
   if (items.length === 0) {
     return null;
@@ -96,28 +115,52 @@ export function HeroCarousel({ items, className }: HeroCarouselProps) {
               <CarouselItem key={item.id} className="basis-full">
                 <Link
                   href={item.link}
-                  className="group relative block h-[200px] overflow-hidden rounded-card md:h-[400px]"
+                  className="group relative block h-[52vh] min-h-[320px] overflow-hidden md:h-[72vh] md:min-h-[560px]"
                 >
                   {/* 渐变兜底层：无论有没有图都在最底层，图挂时自动露出 */}
                   <span className={cn("absolute inset-0", style.bg)} aria-hidden="true" />
 
                   {showImage && item.image ? (
-                    <Image
-                      src={item.image}
-                      alt=""
-                      fill
-                      unoptimized
-                      sizes="100vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                      onError={() => markBroken(item.id)}
-                    />
+                    // Ken Burns：8s 推拉到 1.06，用 `repeatType: "reverse"` 呼吸回来（单向循环回到 1 会有可见跳变）
+                    <motion.span
+                      className="absolute inset-0 block"
+                      initial={{ scale: 1 }}
+                      animate={reduce ? { scale: 1 } : { scale: 1.06 }}
+                      transition={
+                        reduce
+                          ? { duration: 0 }
+                          : {
+                              duration: 8,
+                              ease: "easeOut",
+                              repeat: Infinity,
+                              repeatType: "reverse",
+                            }
+                      }
+                    >
+                      <Image
+                        src={item.image}
+                        alt=""
+                        fill
+                        unoptimized
+                        sizes="100vw"
+                        className="object-cover transition-[filter] duration-300 group-hover:brightness-105"
+                        onError={() => markBroken(item.id)}
+                      />
+                    </motion.span>
                   ) : null}
 
                   {showImage ? (
                     <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-foreground/85 via-foreground/40 to-transparent p-6">
-                      <span className="line-clamp-2 font-heading text-lg font-semibold text-background md:text-2xl">
+                      {/* 标题 fade-up：key 随「是否当前页」翻转 ⇒ 切页时重播；reduced-motion 时静态 */}
+                      <motion.span
+                        key={`hero-title-${item.id}-${selected === index}`}
+                        initial={reduce ? false : { opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={reduce ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }}
+                        className="line-clamp-2 block font-heading text-lg font-semibold text-background md:text-2xl"
+                      >
                         {item.title}
-                      </span>
+                      </motion.span>
                     </span>
                   ) : (
                     <span

@@ -164,21 +164,21 @@ html[data-a11y-contrast="off"] {
   --sp-section-sm: 48px;
   --sp-card: 24px;
 
-  /* --- 圆角（docs/08：按钮 8 / 卡片 12 / 输入框 8 / 图片 8） --- */
+  /* --- 圆角（M6 视觉改造：卡片 12 → 8，向"985 官网"观感靠；docs/08 原值 12） --- */
   --r-sm: 4px;
   --r-md: 6px;
   --r-control: 8px; /* 按钮 / 输入框 / 文本域 / 下拉 */
-  --r-card: 12px; /* 卡片 / 弹窗 */
+  --r-card: 8px; /* 卡片 / 弹窗（M6：12 → 8） */
   --r-image: 8px;
   --r-2xl: 16px;
   --r-3xl: 24px;
   --r-4xl: 32px; /* badge 用 rounded-4xl */
   /* sonner.tsx 内部直接读 var(--radius)（组件不改），给卡片值 */
-  --radius: 12px;
+  --radius: 8px;
 
-  /* --- 阴影三档（docs/08） --- */
-  --elev-card: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --elev-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* --- 阴影三档（M6 视觉改造：卡片阴影减到"几乎看不见"，hover 才轻抬升） --- */
+  --elev-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --elev-hover: 0 8px 20px rgba(0, 0, 0, 0.08);
   --elev-modal: 0 20px 40px rgba(0, 0, 0, 0.15);
 
   /* --- 行高（docs/08：正文 line-height 1.75） --- */

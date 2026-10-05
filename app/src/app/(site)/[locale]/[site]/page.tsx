@@ -184,33 +184,36 @@ export default async function SiteHomePage({
   const sites = subSites;
 
   return (
-    <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">
-      {/* ① 焦点图轮播（0 条则不渲染该区块） */}
+    <>
+      {/* ① 焦点图轮播（**通栏**：移出 max-w-page 容器，M6 视觉改造批次 1；0 条则不渲染） */}
       {slides.length > 0 ? <HeroCarousel items={slides} /> : null}
 
-      {/* ② 快捷入口（6 项；数据源待第 3~4 周接 Config/Server Action） */}
-      <section aria-label={tHome("quickLinks")}>
-        <QuickLinks links={mainQuickLinks(tHome)} />
-      </section>
+      {/* ②~⑤ 其余区块保持居中容器（间距/内边距不变） */}
+      <div className="mx-auto w-full max-w-page space-y-12 px-gutter py-section-sm">
+        {/* ② 快捷入口（6 项；数据源待第 3~4 周接 Config/Server Action） */}
+        <section aria-label={tHome("quickLinks")}>
+          <QuickLinks links={mainQuickLinks(tHome)} />
+        </section>
 
-      {/* ③ 学校要闻 */}
-      <NewsList
-        items={news}
-        title={tHome("latestNews")}
-        moreHref={`/${slug}/news`}
-        siteSlug={slug}
-      />
+        {/* ③ 学校要闻 */}
+        <NewsList
+          items={news}
+          title={tHome("latestNews")}
+          moreHref={`/${slug}/news`}
+          siteSlug={slug}
+        />
 
-      {/* ④ 通知公告（双 tab；区块标题即 tab 标签，避免重复，故不加 SectionTitle） */}
-      <section aria-label={tHome("notices")}>
-        <NoticeTabs tabs={noticeTabs} siteSlug={slug} />
-      </section>
+        {/* ④ 通知公告（双 tab；区块标题即 tab 标签，避免重复，故不加 SectionTitle） */}
+        <section aria-label={tHome("notices")}>
+          <NoticeTabs tabs={noticeTabs} siteSlug={slug} />
+        </section>
 
-      {/* ⑤ 院系设置 */}
-      <section className="space-y-4">
-        <SectionTitle title={tNav("departments")} moreHref={`/${slug}/departments`} />
-        <SiteCards sites={sites} />
-      </section>
-    </div>
+        {/* ⑤ 院系设置 */}
+        <section className="space-y-4">
+          <SectionTitle title={tNav("departments")} moreHref={`/${slug}/departments`} />
+          <SiteCards sites={sites} />
+        </section>
+      </div>
+    </>
   );
 }
