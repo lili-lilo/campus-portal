@@ -122,7 +122,8 @@ pnpm dev                  # http://localhost:3000 → 302 /main ；后台 /admin
 
 ## 已知限制
 
-1. **公网访问**：`*.vercel.app` 在国内被 **DNS 污染 + SNI 阻断** ⇒ **放弃公网部署**，展示形态 = **GitHub 仓库 + 录屏**。
+1. **公网访问**：`*.vercel.app` 在国内被 **DNS 污染 + SNI 阻断** ⇒ **放弃公网部署**，展示形态 = **GitHub 仓库 + 本地录屏**。
+   **演示视频：本地录屏 5 分钟（未公开分享）**，文件在 `docs/演示视频/`（**已被 `.gitignore` 排除，不进仓库**）；自动演示脚本见 `tests/demo-video.spec.ts` + `playwright.demo.config.ts`。
 2. **媒体存储**：生产侧**未接** Supabase Storage（`StorageAdapter` 抽象已就位，本地实现走 `public/uploads/`）；跨实例部署需补（`docs/11` A33）。
 3. **无注册 / 无找回密码**：只有 seed 的 4 个演示账号（+7 个数据填充账号），无公开注册、无 OAuth、无邮件服务。
 4. **Auth.js v5 仍为 beta**（`5.0.0-beta.32`）⇒ 升级前必须回归登录与权限链路。
